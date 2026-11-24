@@ -1,0 +1,13 @@
+{
+  "synchronizedAt": "2026-11-24",
+  "backend": {
+    "repository": "https://github.com/GestaoDeAcaoFinal/backend",
+    "commit": "3d22b2c4e414bbf860b0cb97b2a95d876e66cfda"
+  },
+  "frontend": {
+    "repository": "https://github.com/GestaoDeAcaoFinal/frontend",
+    "commit": "a6457a1206574388d5e4274111bebaa3528868ae"
+  },
+  "excludedUpstreamMetadata": [".github/", ".superpowers/", ".agents/", ".claude/", ".vscode/"],
+  "documentationNormalization": "Somente linhas vazias finais foram removidas em quatro documentos legados de backend/openspec; nenhum código foi alterado."
+}

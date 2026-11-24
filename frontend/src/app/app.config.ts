@@ -8,6 +8,7 @@ import { environment } from '../environments/environment';
 import { routes } from './app.routes';
 import { API_BASE_URL } from './core/api/api-base-url.token';
 import { apiErrorInterceptor } from './core/api/api-error.interceptor';
+import { authInterceptor } from './core/auth/auth.interceptor';
 
 registerLocaleData(localePt, 'pt-BR');
 
@@ -15,7 +16,7 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
-    provideHttpClient(withInterceptors([apiErrorInterceptor])),
+    provideHttpClient(withInterceptors([authInterceptor, apiErrorInterceptor])),
     { provide: LOCALE_ID, useValue: 'pt-BR' },
     { provide: API_BASE_URL, useValue: environment.apiBaseUrl }
   ]

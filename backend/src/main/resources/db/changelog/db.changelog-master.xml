@@ -12,4 +12,8 @@
 
     <include file="db/changelog/changes/003-renomear-produto-e-adicionar-unicidade.xml"/>
 
+    <include file="changes/004-criar-usuario.xml"
+             relativeToChangelogFile="true"/>
+    <include file="changes/005-proprietario-operacao.xml" relativeToChangelogFile="true"/>
+    <include file="changes/006-versao-sessao.xml" relativeToChangelogFile="true"/>
 </databaseChangeLog>

@@ -9,6 +9,7 @@ import com.av2.gestaodeacao.domains.Acao;
 import com.av2.gestaodeacao.domains.Corretora;
 import com.av2.gestaodeacao.domains.dtos.AcaoRequestDTO;
 import com.av2.gestaodeacao.exceptions.ConflitoException;
+import com.av2.gestaodeacao.exceptions.EntradaOuOperacaoInvalidaException;
 import com.av2.gestaodeacao.exceptions.DadoExternoNaoEncontradoException;
 import com.av2.gestaodeacao.exceptions.FalhaDeProvedorException;
 import com.av2.gestaodeacao.exceptions.ProvedorIndisponivelException;
@@ -91,6 +92,36 @@ class AcaoServiceTest {
     }
 
     @Test
+    void cadastraClassesComPontoSemAlterarSimboloDoProvedor() {
+        for (String ticker : List.of("BRK.A", "BRK.B")) {
+            prepararCadastro(ticker);
+            when(twelveData.buscarAcao(ticker)).thenReturn(twelve("Berkshire Hathaway", "500", "USD"));
+            Acao salva = service.salvar(novaAcao(" " + ticker.toLowerCase(java.util.Locale.ROOT) + " "));
+            assertThat(salva.getTicker()).isEqualTo(ticker);
+            assertThat(salva.getMercado()).isEqualTo("EUA");
+            assertThat(salva.getMoeda()).isEqualTo("USD");
+            verify(twelveData).buscarAcao(ticker);
+        }
+        verifyNoInteractions(brapi);
+    }
+
+    @Test
+    void bloqueiaDuplicadoComPontoAntesDeConsultarProvedor() {
+        when(repository.findByTicker("BRK.B")).thenReturn(Optional.of(new Acao()));
+        assertThatThrownBy(() -> service.salvar(novaAcao(" brk.b ")))
+                .isInstanceOf(ConflitoException.class).hasMessage("Ticker já cadastrado");
+        verifyNoInteractions(brapi, twelveData, corretoraRepository);
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void buscaPorTickerPreservaClasseNormalizada() {
+        Acao existente = new Acao();
+        when(repository.findByTicker("BRK.A")).thenReturn(Optional.of(existente));
+        assertThat(service.buscarPorTicker(" brk.a ")).isSameAs(existente);
+    }
+
+    @Test
     void violacaoConcorrenteDeTickerEhTraduzidaParaConflito() {
         prepararCadastro("PETR4");
         when(brapi.buscarAcao("PETR4")).thenReturn(brapi("Petrobras", "31.42", "BRL"));
@@ -162,6 +193,7 @@ class AcaoServiceTest {
 
     @Test
     void falhas502E503PreservamCotacaoETimestampAnteriores() {
+        verificarFalhaAtomica(new com.av2.gestaodeacao.exceptions.LimiteDeConsultasException("Twelve Data", 60));
         verificarFalhaAtomica(new FalhaDeProvedorException("Brapi"));
         verificarFalhaAtomica(new ProvedorIndisponivelException("Brapi"));
     }
@@ -187,6 +219,127 @@ class AcaoServiceTest {
         assertThatThrownBy(() -> service.buscarPorId(99L))
                 .isInstanceOf(RecursoNaoEncontradoException.class);
         verify(repository).findByTicker("PETR4");
+    }
+
+
+    @Test
+    void deveAtualizarCotacaoAmericanaUsandoSomenteTwelveData() {
+        // Arrange
+        LocalDateTime anterior = LocalDateTime.of(2026, 1, 1, 10, 0);
+
+        Acao acao = acaoExistente("AAPL", "EUA", 200.0, anterior);
+
+        when(repository.findById(1L))
+                .thenReturn(Optional.of(acao));
+
+        when(twelveData.buscarAcao("AAPL"))
+                .thenReturn(twelve("Apple Inc", "225.50", "USD"));
+
+        when(repository.save(acao))
+                .thenReturn(acao);
+
+        // Act
+        Acao atualizada = service.atualizarCotacao(1L);
+
+        // Assert
+        assertThat(atualizada.getCotacaoAtual())
+                .isEqualTo(225.50);
+
+        assertThat(atualizada.getDataHoraCotacao())
+                .isAfter(anterior);
+
+        verify(twelveData).buscarAcao("AAPL");
+        verifyNoInteractions(brapi);
+        verify(repository).save(acao);
+    }
+
+
+    @Test
+    void deveRecusarCadastroQuandoMoedaEstiverAusente() {
+        // Arrange
+        prepararCadastro("PETR4");
+
+        when(brapi.buscarAcao("PETR4"))
+                .thenReturn(brapi("Petrobras", "31.42", null));
+
+        // Act + Assert
+        assertThatThrownBy(() -> service.salvar(novaAcao("PETR4")))
+                .isInstanceOf(FalhaDeProvedorException.class);
+
+        verify(brapi).buscarAcao("PETR4");
+        verify(repository, never()).save(any(Acao.class));
+        verifyNoInteractions(twelveData);
+    }
+
+
+    @Test
+    void deveRecusarCadastroQuandoCotacaoForNula() {
+        // Arrange
+        prepararCadastro("PETR4");
+
+        when(brapi.buscarAcao("PETR4"))
+                .thenReturn(new BrapiResponse(
+                        List.of(new BrapiQuoteResponse(
+                                "Petrobras",
+                                null,
+                                "BRL"
+                        ))
+                ));
+
+        // Act + Assert
+        assertThatThrownBy(() -> service.salvar(novaAcao("PETR4")))
+                .isInstanceOf(FalhaDeProvedorException.class);
+
+        verify(brapi).buscarAcao("PETR4");
+        verify(repository, never()).save(any(Acao.class));
+        verifyNoInteractions(twelveData);
+    }
+
+
+    @Test
+    void deveRecusarCadastroComCorretoraIdNulo() {
+        // Arrange
+        AcaoRequestDTO dto = novaAcao("PETR4");
+        dto.setCorretoraId(null);
+
+        // Act + Assert
+        assertThatThrownBy(() -> service.salvar(dto))
+                .isInstanceOf(
+                        com.av2.gestaodeacao.exceptions.EntradaOuOperacaoInvalidaException.class
+                );
+
+        verifyNoInteractions(corretoraRepository, brapi, twelveData);
+        verify(repository, never()).save(any(Acao.class));
+    }
+
+    @Test
+    void deveRecusarCadastroComCorretoraIdZero() {
+        // Arrange
+        AcaoRequestDTO dto = novaAcao("PETR4");
+        dto.setCorretoraId(0L);
+
+        // Act + Assert
+        assertThatThrownBy(() -> service.salvar(dto))
+                .isInstanceOf(EntradaOuOperacaoInvalidaException.class);
+
+        verifyNoInteractions(corretoraRepository, brapi, twelveData);
+        verify(repository, never()).save(any(Acao.class));
+    }
+
+
+    @Test
+    void deveRecusarCadastroComDtoNulo() {
+        // Act + Assert
+        assertThatThrownBy(() -> service.salvar(null))
+                .isInstanceOf(EntradaOuOperacaoInvalidaException.class)
+                .hasMessage("Dados da ação são obrigatórios");
+
+        verifyNoInteractions(
+                repository,
+                corretoraRepository,
+                brapi,
+                twelveData
+        );
     }
 
     private void verificarFalhaAtomica(RuntimeException falha) {

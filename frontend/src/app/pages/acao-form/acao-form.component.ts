@@ -3,6 +3,7 @@ import { Component, inject, OnInit } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiError } from '../../core/api/api-error.interceptor';
+import { TICKER_PATTERN } from '../../core/api/ticker-format';
 import { Acao, Corretora } from '../../core/api/api.models';
 import { initialRequestState, RequestState, toErrorState, toLoadingState, toSuccessState } from '../../core/state/request-state';
 import { AcaoService } from '../../services/acao.service';
@@ -14,7 +15,7 @@ export class AcaoFormComponent implements OnInit {
   private readonly acaoService = inject(AcaoService);
   private readonly corretoraService = inject(CorretoraService);
   readonly form = this.formBuilder.nonNullable.group({
-    ticker: ['', [Validators.required, Validators.pattern(/^[A-Za-z0-9.]{2,12}$/)]],
+    ticker: ['', [Validators.required, Validators.pattern(TICKER_PATTERN)]],
     corretoraId: [0, [Validators.required, Validators.min(1)]]
   });
   state: RequestState<Acao> = initialRequestState<Acao>();

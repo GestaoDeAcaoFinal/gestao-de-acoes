@@ -1,0 +1,37 @@
+:root {
+  --color-primary: #253d37;
+  --color-primary-hover: #324f46;
+  --color-text: #1d2925;
+  --color-muted: #52635a;
+  --color-canvas: #f5f5f0;
+  --color-surface: #ffffff;
+  --color-surface-muted: #e9ede4;
+  --color-border: #d5ddd2;
+  --color-control-border: #809184;
+  --color-gold: #c2a46d;
+  --color-focus: #537d6b;
+  --color-danger: #a12f2c;
+  --color-success: #216348;
+  --radius-sm: .375rem;
+  --radius-lg: .625rem;
+  --shadow-card: none;
+  --space-1: .25rem;
+  --space-2: .5rem;
+  --space-3: .75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  /* Compatibility aliases for the existing pages. */
+  --color-navy-950: var(--color-text);
+  --color-navy-900: var(--color-primary);
+  --color-navy-800: var(--color-primary-hover);
+  --color-emerald-600: var(--color-focus);
+  --color-emerald-700: var(--color-primary);
+  --color-emerald-800: var(--color-primary);
+  --color-slate-700: var(--color-muted);
+  --color-slate-500: var(--color-muted);
+  --bs-body-font-family: Inter, system-ui, -apple-system, sans-serif;
+  --bs-body-color: var(--color-text);
+  --bs-body-bg: var(--color-canvas);
+  --bs-border-color: var(--color-border);
+}

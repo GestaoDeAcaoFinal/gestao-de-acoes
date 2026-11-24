@@ -1,4 +1,4 @@
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import { CurrencyPipe, DatePipe, formatDate } from '@angular/common';
 import { Component, inject, OnInit } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -35,6 +35,45 @@ export class OperacaoListComponent implements OnInit {
   readonly idForm = this.formBuilder.nonNullable.group({
     id: this.formBuilder.nonNullable.control(0, [Validators.required, Validators.min(1)])
   });
+  readonly filtrosForm = this.formBuilder.nonNullable.group({
+    texto: [''], inicio: [''], fim: ['']
+  }, { validators: control => {
+    const { inicio, fim } = control.value;
+    return inicio && fim && inicio > fim ? { periodoInvertido: true } : null;
+  } });
+  readonly detalhesAbertos = new Set<number>();
+  private historicoConsultadoId = 0;
+
+  get operacoesFiltradas(): OperacaoAcao[] {
+    if (this.filtrosForm.invalid) return [];
+    const { texto, inicio, fim } = this.filtrosForm.getRawValue();
+    const pesquisa = texto.trim().toLocaleLowerCase('pt-BR');
+    return (this.listState.data ?? []).filter(op => {
+      const corresponde = !pesquisa || `${op.id} ${op.acao.ticker} ${op.acao.nomeEmpresa ?? ''}`.toLocaleLowerCase('pt-BR').includes(pesquisa);
+      if (!corresponde || (!inicio && !fim)) return corresponde;
+      if (!op.dataOperacao || Number.isNaN(new Date(op.dataOperacao).getTime())) return false;
+      const dia = formatDate(op.dataOperacao, 'yyyy-MM-dd', 'pt-BR');
+      return (!inicio || dia >= inicio) && (!fim || dia <= fim);
+    });
+  }
+
+  get contextoHistorico(): string {
+    if (this.filtroAtivo === 'historico') {
+      const acao = this.acoesState.data?.find(item => item.id === this.historicoConsultadoId);
+      return `Histórico de ${acao?.ticker ?? 'ação ' + this.historicoConsultadoId}`;
+    }
+    return { todas: 'Todas as operações', compras: 'Compras', vendas: 'Vendas' }[this.filtroAtivo];
+  }
+
+  alternarDetalhes(id: number): void {
+    if (this.detalhesAbertos.has(id)) this.detalhesAbertos.delete(id);
+    else this.detalhesAbertos.add(id);
+  }
+
+  limparFiltros(): void {
+    this.filtrosForm.reset(); this.historicoForm.reset();
+    this.historicoConsultadoId = 0; this.aplicarFiltro('todas');
+  }
 
   filtroAtivo: OperationFilter = 'todas';
   listState: RequestState<OperacaoAcao[]> = initialRequestState<OperacaoAcao[]>();
@@ -49,7 +88,7 @@ export class OperacaoListComponent implements OnInit {
 
   carregar(): void {
     if (this.filtroAtivo === 'historico') {
-      this.buscarHistorico();
+      this.loadList(this.operacaoService.listarHistorico(this.historicoConsultadoId));
       return;
     }
 
@@ -68,7 +107,8 @@ export class OperacaoListComponent implements OnInit {
     }
 
     this.filtroAtivo = 'historico';
-    this.loadList(this.operacaoService.listarHistorico(this.historicoForm.getRawValue().acaoId));
+    this.historicoConsultadoId = this.historicoForm.getRawValue().acaoId;
+    this.loadList(this.operacaoService.listarHistorico(this.historicoConsultadoId));
   }
 
   buscarPorId(): void {

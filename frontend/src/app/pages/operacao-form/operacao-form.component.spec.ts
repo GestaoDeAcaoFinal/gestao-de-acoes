@@ -45,6 +45,11 @@ describe('OperacaoFormComponent', () => {
     await TestBed.configureTestingModule({ imports: [OperacaoFormComponent], providers: [provideRouter([]), { provide: LOCALE_ID, useValue: 'pt-BR' }, { provide: OperacaoService, useValue: service }, { provide: AcaoService, useValue: acaoService }] }).compileComponents();
     fixture = TestBed.createComponent(OperacaoFormComponent); component = fixture.componentInstance; fixture.detectChanges();
   });
+  function confirmarRevisao(): void {
+    fixture.detectChanges();
+    const button = fixture.nativeElement.querySelector('[data-testid="confirmar-operacao"]') as HTMLButtonElement;
+    expect(button).not.toBeNull(); button?.click(); fixture.detectChanges();
+  }
   it('renderiza o fluxo em um painel financeiro acessível', () => {
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
@@ -131,7 +136,7 @@ describe('OperacaoFormComponent', () => {
       .toContain('Valor informado em BRL');
   });
   it('compra com preço preenchido e bloqueia submissão duplicada', () => {
-    const pending = new Subject<OperacaoAcao>(); service.comprar.and.returnValue(pending); component.form.setValue({ acaoId: 3, quantidade: 2, tipoOperacao: 'COMPRA', precoCompra: 35, precoVenda: null }); component.salvar(); component.salvar();
+    const pending = new Subject<OperacaoAcao>(); service.comprar.and.returnValue(pending); component.form.setValue({ acaoId: 3, quantidade: 2, tipoOperacao: 'COMPRA', precoCompra: 35, precoVenda: null }); component.salvar(); confirmarRevisao(); component.salvar(); confirmarRevisao();
     expect(service.comprar).toHaveBeenCalledOnceWith(3, 2, 35); pending.next(operacao); expect(component.state.data).toEqual(operacao);
   });
   it('preenche o preço de compra com a cotação e permite editar antes de salvar', () => {
@@ -145,12 +150,13 @@ describe('OperacaoFormComponent', () => {
     component.form.controls.quantidade.setValue(1);
     service.comprar.and.returnValue(of({ ...operacao, quantidade: 1, precoUnitario: 30, precoMedio: 30, valorTotal: 30 }));
     component.salvar();
+    confirmarRevisao();
 
     expect(service.comprar).toHaveBeenCalledOnceWith(3, 1, 30);
   });
   it('exige preço positivo para venda e preserva valores no conflito', () => {
     component.form.setValue({ acaoId: 3, quantidade: 2, tipoOperacao: 'VENDA', precoCompra: null, precoVenda: null }); component.salvar(); expect(service.vender).not.toHaveBeenCalled();
-    service.vender.and.returnValue(throwError(() => new ApiError(409, 'Conflito', 'Saldo insuficiente.'))); component.form.controls.precoVenda.setValue(40); component.salvar();
+    service.vender.and.returnValue(throwError(() => new ApiError(409, 'Conflito', 'Saldo insuficiente.'))); component.form.controls.precoVenda.setValue(40); component.salvar(); confirmarRevisao();
     expect(service.vender).toHaveBeenCalledOnceWith(3, 2, 40); expect(component.form.getRawValue().precoVenda).toBe(40); expect(component.state.error?.status).toBe(409);
   });
   it('formata total e data da operação no locale pt-BR', () => {
@@ -158,6 +164,7 @@ describe('OperacaoFormComponent', () => {
     component.form.setValue({ acaoId: 3, quantidade: 2, tipoOperacao: 'COMPRA', precoCompra: 35, precoVenda: null });
 
     component.salvar();
+    confirmarRevisao();
     fixture.detectChanges();
 
     const result = fixture.nativeElement.querySelector('.result-card') as HTMLElement;
@@ -166,16 +173,20 @@ describe('OperacaoFormComponent', () => {
     expect(content).toContain('04/09/2026 às 10:00');
   });
 
-  it('oculta a operação anterior durante uma nova submissão que termina em erro', () => {
+  it('inicia outro registro explicitamente sem mostrar o comprovante anterior em caso de erro', () => {
     const secondRequest = new Subject<OperacaoAcao>();
     service.comprar.and.returnValues(of(operacao), secondRequest);
     component.form.setValue({ acaoId: 3, quantidade: 2, tipoOperacao: 'COMPRA', precoCompra: 35, precoVenda: null });
 
     component.salvar();
+    confirmarRevisao();
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.result-card')).not.toBeNull();
 
+    component.novaOperacao();
+    component.form.setValue({ acaoId: 3, quantidade: 2, tipoOperacao: 'COMPRA', precoCompra: 35, precoVenda: null });
     component.salvar();
+    confirmarRevisao();
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.result-card')).toBeNull();
 

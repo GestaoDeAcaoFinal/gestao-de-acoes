@@ -1,22 +1,39 @@
+@if (auth.isAuthenticated()) {
+<a class="skip-link" href="#conteudo-principal">Pular para o conteúdo</a>
 <header class="app-header">
   <div class="app-container app-header__inner">
-    <a class="brand" routerLink="/" aria-label="Nexo Capital — visão geral">
-      <span class="brand__mark" aria-hidden="true">NC</span>
-      <span class="brand__copy">
-        <strong class="brand__name">Nexo Capital</strong>
-        <small>Gestão de investimentos</small>
-      </span>
+    <a class="brand" routerLink="/" aria-label="Gestão de Ações — visão geral">
+      <span class="brand__mark" aria-hidden="true">g<span>·</span></span>
+      <span class="brand__copy"><strong class="brand__name">Gestão de Ações</strong><small>Seu espaço de investimentos</small></span>
     </a>
     <nav class="primary-nav" aria-label="Navegação principal">
-      <a routerLink="/" routerLinkActive="is-active"
-         [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page">Visão geral</a>
+      <a routerLink="/" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page">Visão geral</a>
       <a routerLink="/carteira" routerLinkActive="is-active" ariaCurrentWhenActive="page">Carteira</a>
-      <a routerLink="/corretoras" routerLinkActive="is-active" ariaCurrentWhenActive="page">Corretoras</a>
       <a routerLink="/acoes" routerLinkActive="is-active" ariaCurrentWhenActive="page">Ações</a>
+      <a routerLink="/corretoras" routerLinkActive="is-active" ariaCurrentWhenActive="page">Corretoras</a>
       <a routerLink="/operacoes" routerLinkActive="is-active" ariaCurrentWhenActive="page">Operações</a>
     </nav>
-    <a class="btn-finance-primary header-action" routerLink="/operacoes/nova">Nova operação</a>
+    <div class="header-session">
+      <a class="btn-finance-primary header-action" routerLink="/operacoes/nova"><lucide-icon class="ui-icon" [img]="icons.Plus" [size]="18" aria-hidden="true"></lucide-icon><span>Nova operação</span></a>
+      <div class="account">
+        <button class="account-trigger" type="button" data-testid="account-menu-trigger" (click)="toggleMenu()" [attr.aria-expanded]="menuOpen()" [attr.aria-controls]="menuOpen() ? 'account-menu' : null" [attr.aria-label]="'Menu da conta ' + auth.username()">
+          <span class="account-avatar" aria-hidden="true">{{ auth.username()?.slice(0, 1)?.toUpperCase() }}</span>
+          <span class="account-identity">{{ auth.username() }}<small>{{ auth.hasRole('ADMIN') ? 'ADMIN' : 'USER' }}</small></span>
+          <lucide-icon class="ui-icon" [img]="icons.ChevronDown" [size]="18" aria-hidden="true"></lucide-icon>
+        </button>
+        @if (menuOpen()) {
+          <nav class="account-menu" id="account-menu" aria-label="Menu da conta">
+            <div class="account-menu__identity"><strong>{{ auth.username() }}</strong><span>Permissão {{ auth.hasRole('ADMIN') ? 'ADMIN' : 'USER' }}</span></div>
+            @if (auth.hasRole('ADMIN')) { <a routerLink="/usuarios"><lucide-icon class="ui-icon" [img]="icons.Users" [size]="18" aria-hidden="true"></lucide-icon>Administração de usuários</a> }
+            <button type="button" data-testid="logout" (click)="logout()"><lucide-icon class="ui-icon" [img]="icons.LogOut" [size]="18" aria-hidden="true"></lucide-icon>Sair</button>
+          </nav>
+        }
+      </div>
+    </div>
   </div>
 </header>
-<main class="app-main"><router-outlet></router-outlet></main>
-<footer class="app-footer"><div class="app-container">Controle simples e transparente da sua carteira.</div></footer>
+}
+<main class="app-main" id="conteudo-principal"><router-outlet></router-outlet></main>
+@if (auth.isAuthenticated()) {
+<footer class="app-footer"><div class="app-container"><span>Gestão de Ações</span><span>Seu espaço de investimentos.</span></div></footer>
+}

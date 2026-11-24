@@ -56,6 +56,32 @@ describe('AcaoService', () => {
 
   afterEach(() => httpTesting.verify());
 
+  it('informa progresso após cada resposta sem emitir resultado final antecipado', async () => {
+    const progress = jasmine.createSpy('progress');
+    const atualizar = service.atualizarTodasCotacoes as (onProgress: (completed: number, total: number, ticker: string) => void) => ReturnType<AcaoService['atualizarTodasCotacoes']>;
+    const result = firstValueFrom(atualizar.call(service, progress));
+    httpTesting.expectOne(`${apiBaseUrl}/acoes`).flush([acao, { ...acao, id: 2, ticker: 'AAPL' }]);
+    httpTesting.expectOne(`${apiBaseUrl}/acoes/1/atualizar-cotacao`).flush(acao);
+    expect(progress).toHaveBeenCalledWith(1, 2, 'PETR4');
+    httpTesting.expectOne(`${apiBaseUrl}/acoes/2/atualizar-cotacao`).flush({}, { status: 503, statusText: 'Service Unavailable' });
+    expect(progress).toHaveBeenCalledWith(2, 2, 'AAPL');
+    expect((await result).map(item => item.sucesso)).toEqual([true, false]);
+  });
+
+  it('atualiza todas em sequência e informa falhas parciais sem interromper as demais', async () => {
+    const result = firstValueFrom(service.atualizarTodasCotacoes());
+    httpTesting.expectOne(`${apiBaseUrl}/acoes`).flush([acao, { ...acao, id: 2, ticker: 'VALE3' }, { ...acao, id: 3, ticker: 'ITUB4' }]);
+    const first = httpTesting.expectOne(`${apiBaseUrl}/acoes/1/atualizar-cotacao`);
+    expect(first.request.method).toBe('PUT');
+    httpTesting.expectNone(`${apiBaseUrl}/acoes/2/atualizar-cotacao`);
+    first.flush({ ...acao, cotacaoAtual: 40 });
+    httpTesting.expectOne(`${apiBaseUrl}/acoes/2/atualizar-cotacao`).flush({ detail: 'Provedor indisponível' }, { status: 502, statusText: 'Bad Gateway' });
+    httpTesting.expectOne(`${apiBaseUrl}/acoes/3/atualizar-cotacao`).flush({ ...acao, id: 3 });
+    const updates = await result;
+    expect(updates.map(update => update.sucesso)).toEqual([true, false, true]);
+    expect(updates[1].ticker).toBe('VALE3');
+  });
+
   it('envia somente o contrato de cadastro para POST /acoes', async () => {
     const request: AcaoRequest = { ticker: 'PETR4', corretoraId: 2 };
     const resultPromise = firstValueFrom(service.salvar(request));

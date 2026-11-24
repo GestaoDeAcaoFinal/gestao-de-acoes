@@ -8,6 +8,7 @@ import { ApiError } from '../../core/api/api-error.interceptor';
 import { Acao, Corretora } from '../../core/api/api.models';
 import { AcaoService } from '../../services/acao.service';
 import { AcaoListComponent } from './acao-list.component';
+import { AuthService } from '../../core/auth/auth.service';
 
 const corretora: Corretora = { id: 2, cnpj: '12345678000190', razaoSocial: 'XP', nomeFantasia: null, email: null, telefone: null, cep: '01001000', logradouro: null, numero: null, complemento: null, bairro: null, cidade: 'São Paulo', uf: 'SP', situacaoCadastral: null, validadaNaCvm: true, dataCadastro: null };
 const acao: Acao = { id: 1, ticker: 'PETR4', nomeEmpresa: 'Petrobras', mercado: 'B3', moeda: 'BRL', cotacaoAtual: 35, dataHoraCotacao: null, corretoraRelacionada: corretora };
@@ -43,7 +44,7 @@ describe('AcaoListComponent', () => {
   let fixture: ComponentFixture<AcaoListComponent>; let component: AcaoListComponent; let service: jasmine.SpyObj<AcaoService>;
   beforeEach(async () => {
     service = jasmine.createSpyObj('AcaoService', ['listar', 'buscarPorId', 'buscarPorTicker', 'atualizarCotacao']); service.listar.and.returnValue(of([]));
-    await TestBed.configureTestingModule({ imports: [AcaoListComponent], providers: [provideRouter([]), { provide: LOCALE_ID, useValue: 'pt-BR' }, { provide: AcaoService, useValue: service }] }).compileComponents();
+    await TestBed.configureTestingModule({ imports: [AcaoListComponent], providers: [provideRouter([]), { provide: AuthService, useValue: { hasRole: () => true } }, { provide: LOCALE_ID, useValue: 'pt-BR' }, { provide: AcaoService, useValue: service }] }).compileComponents();
     fixture = TestBed.createComponent(AcaoListComponent); component = fixture.componentInstance; fixture.detectChanges();
   });
   it('representa lista vazia e permite retry após erro', () => {
@@ -52,10 +53,26 @@ describe('AcaoListComponent', () => {
     expect(component.listState.error?.status).toBe(503);
     service.listar.and.returnValue(of([acao])); component.carregarAcoes(); expect(component.listState.data).toEqual([acao]);
   });
+  it('não renderiza cadastro nem atualização de cotação para USER', () => {
+    spyOn(component.auth, 'hasRole').and.returnValue(false);
+    component.listState.data = [acao];
+    component.searchState.data = acao;
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('a[href="/acoes/nova"]')).toBeNull();
+    expect(host.querySelector('button[aria-label="Atualizar cotação de PETR4"]')).toBeNull();
+    expect(host.textContent).toContain('PETR4');
+  });
   it('bloqueia consulta inválida e busca ticker válido', () => {
     component.searchForm.setValue({ criterio: 'id', valor: '0' }); component.buscar(); expect(service.buscarPorId).not.toHaveBeenCalled();
     service.buscarPorTicker.and.returnValue(of(acao)); component.searchForm.setValue({ criterio: 'ticker', valor: ' petr4 ' }); component.buscar();
     expect(service.buscarPorTicker).toHaveBeenCalledOnceWith('PETR4'); expect(component.searchState.data).toEqual(acao);
+  });
+  it('consulta classe com ponto sem mudar o símbolo', () => {
+    service.buscarPorTicker.and.returnValue(of({ ...acao, ticker: 'BRK.B' }));
+    component.searchForm.setValue({ criterio: 'ticker', valor: ' brk.b ' });
+    component.buscar();
+    expect(service.buscarPorTicker).toHaveBeenCalledOnceWith('BRK.B');
   });
   it('atualiza a ação visível e preserva dados se provedor falhar', () => {
     component.listState.data = [acao]; const atualizada = { ...acao, cotacaoAtual: 36 };
@@ -92,11 +109,11 @@ describe('AcaoListComponent', () => {
     expect(host.querySelector('a.btn-finance-primary')).not.toBeNull();
     const table = host.querySelector('table.finance-table') as HTMLTableElement;
     expect(table.classList).toContain('table-hover');
-    expect(getComputedStyle(table).getPropertyValue('--bs-table-hover-bg').trim()).toBe('#f4f8fa');
-    expect(table.querySelector('thead th')?.textContent?.trim()).toBe('ID');
+    expect(getComputedStyle(table).getPropertyValue('--bs-table-hover-bg').trim()).toBe('#edf0e8');
+    expect(table.querySelector('thead th')?.textContent?.trim()).toBe('Ativo / empresa');
     const idCell = table.querySelector('tbody td') as HTMLTableCellElement;
-    expect(idCell.classList).toContain('numeric');
-    expect(idCell.textContent?.trim()).toBe('1');
+    expect(idCell.querySelector('.ticker-badge')).not.toBeNull();
+    expect(idCell.textContent).toContain('PETR4');
   });
 
   it('separa mercado e moeda da cotação internacional', () => {

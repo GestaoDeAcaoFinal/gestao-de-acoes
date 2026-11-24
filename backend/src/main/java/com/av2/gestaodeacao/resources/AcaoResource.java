@@ -3,12 +3,14 @@ package com.av2.gestaodeacao.resources;
 import com.av2.gestaodeacao.domains.Acao;
 import com.av2.gestaodeacao.domains.dtos.AcaoRequestDTO;
 import com.av2.gestaodeacao.services.AcaoService;
+import com.av2.gestaodeacao.validation.TickerNormalizer;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
 
@@ -22,6 +24,7 @@ public class AcaoResource {
     private AcaoService service;
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public Acao salvar(@Valid @RequestBody AcaoRequestDTO dto) {
         return service.salvar(dto);
     }
@@ -40,14 +43,15 @@ public class AcaoResource {
     public Acao buscarPorTicker(
             @PathVariable
             @Pattern(
-                    regexp = "^\\s*(?=.*[A-Za-z])[A-Za-z0-9]{1,12}\\s*$",
-                    message = "Ticker possui formato inválido"
+                    regexp = TickerNormalizer.FORMATO_TICKER,
+                    message = TickerNormalizer.MENSAGEM_FORMATO
             ) String ticker
     ) {
         return service.buscarPorTicker(ticker);
     }
 
     @PutMapping("/{id}/atualizar-cotacao")
+    @PreAuthorize("hasRole('ADMIN')")
     public Acao atualizarCotacao(@PathVariable @Positive(message = "Id deve ser positivo") Long id) {
         return service.atualizarCotacao(id);
     }

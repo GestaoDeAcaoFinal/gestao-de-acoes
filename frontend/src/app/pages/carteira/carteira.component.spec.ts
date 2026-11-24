@@ -9,6 +9,8 @@ import { ApiError } from '../../core/api/api-error.interceptor';
 import { ResumoCarteira } from '../../core/api/api.models';
 import { OperacaoService } from '../../services/operacao.service';
 import { CarteiraComponent } from './carteira.component';
+import { AuthService } from '../../core/auth/auth.service';
+import { AcaoService } from '../../services/acao.service';
 
 registerLocaleData(localePt, 'pt-BR');
 
@@ -33,6 +35,8 @@ describe('CarteiraComponent', () => {
     await TestBed.configureTestingModule({
       imports: [CarteiraComponent],
       providers: [
+        { provide: AuthService, useValue: { hasRole: () => false } },
+        { provide: AcaoService, useValue: {} },
         provideRouter([]),
         { provide: LOCALE_ID, useValue: 'pt-BR' },
         { provide: OperacaoService, useValue: service }
@@ -76,57 +80,26 @@ describe('CarteiraComponent', () => {
     ]);
   });
 
-  it('keeps long negative monetary values visible across desktop and tablet metric grids', () => {
+  it('mantém valores monetários longos legíveis no resumo desktop e móvel', () => {
     const host = fixture.nativeElement as HTMLElement;
-    const mediaRules = Array.from(document.styleSheets)
-      .flatMap(sheet => Array.from(sheet.cssRules))
-      .filter((rule): rule is CSSMediaRule => rule instanceof CSSMediaRule);
-    const tabletRule = mediaRules.find(rule => rule.conditionText === '(max-width: 1199px)');
-    const compactRule = mediaRules.find(rule => rule.conditionText === '(max-width: 820px)');
-
-    expect(tabletRule).toBeDefined();
-    expect(compactRule).toBeDefined();
-    if (!tabletRule || !compactRule) return;
-
-    const tabletMedia = tabletRule.media.mediaText;
-    const compactMedia = compactRule.media.mediaText;
-    const metrics = host.querySelector<HTMLElement>('.portfolio-metrics');
-    const result = host.querySelector<HTMLElement>('[data-testid="resultado"]');
-    expect(metrics).not.toBeNull();
-    expect(result).not.toBeNull();
-
-    const metricWidth = metrics!.style.width;
-    const resultText = result!.textContent;
-    const resultFontSize = result!.style.fontSize;
-
+    const mediaRule = Array.from(document.styleSheets).flatMap(sheet => Array.from(sheet.cssRules))
+      .filter((rule): rule is CSSMediaRule => rule instanceof CSSMediaRule)
+      .find(rule => rule.conditionText === '(max-width: 760px)' && Array.from(rule.cssRules).some(child => child instanceof CSSStyleRule && child.selectorText.includes('.portfolio-metrics')));
+    expect(mediaRule).toBeDefined(); if (!mediaRule) return;
+    const originalMedia = mediaRule.media.mediaText;
+    const metrics = host.querySelector<HTMLElement>('.portfolio-metrics')!;
+    const result = host.querySelector<HTMLElement>('[data-testid="resultado"]')!;
+    const width = metrics.style.width, content = result.textContent;
     try {
-      tabletRule.media.mediaText = 'not all';
-      compactRule.media.mediaText = 'not all';
-      metrics!.style.width = '1180px';
-      result!.textContent = '-R$ 9.999.999.999,99';
-      result!.style.fontSize = '25.6px';
-      expect(getComputedStyle(metrics!).gridTemplateColumns.trim().split(' ')).toHaveSize(3);
-      expect(result!.scrollWidth).toBeLessThanOrEqual(result!.clientWidth);
-
-      tabletRule.media.mediaText = 'all';
-      metrics!.style.width = '868px';
-      result!.style.fontSize = '18px';
-      expect(getComputedStyle(metrics!).gridTemplateColumns.trim().split(' ')).toHaveSize(3);
-      expect(result!.scrollWidth).toBeLessThanOrEqual(result!.clientWidth);
-
-      compactRule.media.mediaText = 'all';
-      metrics!.style.width = '788px';
-      expect(getComputedStyle(metrics!).gridTemplateColumns.trim().split(' ')).toHaveSize(2);
-      expect(result!.scrollWidth).toBeLessThanOrEqual(result!.clientWidth);
-    } finally {
-      tabletRule.media.mediaText = tabletMedia;
-      compactRule.media.mediaText = compactMedia;
-      metrics!.style.width = metricWidth;
-      result!.textContent = resultText;
-      result!.style.fontSize = resultFontSize;
-    }
+      mediaRule.media.mediaText = 'not all';
+      metrics.style.width = '1180px'; result.textContent = '-R$ 9.999.999.999,99';
+      expect(getComputedStyle(metrics).gridTemplateColumns.trim().split(' ')).toHaveSize(3);
+      expect(result.scrollWidth).toBeLessThanOrEqual(result.clientWidth);
+      mediaRule.media.mediaText = 'all'; metrics.style.width = '288px';
+      expect(getComputedStyle(metrics).gridTemplateColumns.trim().split(' ')).toHaveSize(2);
+      expect(result.scrollWidth).toBeLessThanOrEqual(result.clientWidth);
+    } finally { mediaRule.media.mediaText = originalMedia; metrics.style.width = width; result.textContent = content; }
   });
-
   it('expõe carregamento, erro com retry e estado vazio', () => {
     const pending = new Subject<ResumoCarteira>();
     service.resumirCarteira.and.returnValue(pending);

@@ -33,10 +33,16 @@ yarn-error.log
 .sass-cache/
 /connect.lock
 /coverage
+/test-results/
+/playwright-report/
 /libpeerconnection.log
 testem.log
 /typings
 /.worktrees/
+/.backend/
+/graphify-out/
+/.superpowers/brainstorm/
+/.codex-*.log
 
 # System files
 .DS_Store

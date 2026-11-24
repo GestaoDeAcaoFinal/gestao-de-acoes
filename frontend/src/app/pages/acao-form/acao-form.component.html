@@ -36,10 +36,10 @@
             autocomplete="off"
             aria-describedby="ticker-help ticker-error"
           >
-          <p id="ticker-help" class="field-help">Use o código de negociação do ativo, como PETR4.</p>
+          <p id="ticker-help" class="field-help">Use o símbolo do provedor, como PETR4, AAPL, BRK.A ou BRK.B. Até 12 caracteres; pontos somente entre letras ou números.</p>
           <div id="ticker-error" class="field-error" aria-live="polite">
             @if (form.controls.ticker.touched && (form.controls.ticker.hasError('required') || form.controls.ticker.hasError('pattern'))) {
-              <p>Informe um ticker válido.</p>
+              <p>Informe de 1 a 12 caracteres com pelo menos uma letra. O ponto deve separar letras ou números, sem repetição.</p>
             }
             @if (form.controls.ticker.errors?.['server']; as messages) {
               <p>{{ messages.join(' ') }}</p>

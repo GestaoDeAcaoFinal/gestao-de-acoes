@@ -1,0 +1,37 @@
+<div class="page-shell users-page">
+  <header class="list-toolbar"><div><p class="eyebrow">Administração / acessos</p><h1 class="page-heading">Usuários</h1><p class="form-intro">As pessoas que acessam o sistema e suas permissões.</p></div><button class="btn-finance-primary" type="button" (click)="novo(); edicaoUsuarios.scrollIntoView({block: 'start'})" [disabled]="saving">Cadastrar usuário</button></header>
+  <p class="users-access-note">Área exclusiva de ADMIN. Administrar acessos não permite consultar a carteira de outros usuários.</p>
+  @if (error) { <div class="status-panel status-panel--error" role="alert">{{ error }}</div> }
+  @if (message) { <div class="status-panel status-panel--success" role="status">{{ message }}</div> }
+  @if (loading) { <p class="status-panel" role="status" aria-live="polite">Carregando usuários…</p> }
+  <div class="users-list-heading"><h2>Contas cadastradas</h2><span class="record-count">{{ usuarios.length }} conta(s)</span></div>
+  <div class="table-responsive" [attr.aria-busy]="loading">
+    <table class="table table-hover finance-table users-table"><caption class="visually-hidden">Usuários, permissões e situação de acesso</caption><thead><tr><th scope="col">Usuário</th><th scope="col">Permissão / status</th><th scope="col">Ações</th></tr></thead><tbody>
+      @for (user of usuarios; track user.id) {
+        <tr><td><strong class="user-name">{{ user.username }}</strong><span class="cell-secondary">ID {{ user.id }}</span></td><td><div class="user-access"><span class="user-role">{{ user.papel }}</span><span class="user-status" [class.user-status--inactive]="!user.ativo">{{ user.ativo ? 'Ativo' : 'Inativo' }}</span></div></td><td><div class="user-actions"><button type="button" class="btn-finance-secondary" (click)="editar(user); edicaoUsuarios.scrollIntoView({block: 'start'})" [disabled]="saving" [attr.aria-pressed]="editingId === user.id && !senhaUsuario">Editar</button><button type="button" class="btn-finance-secondary" (click)="prepararSenha(user); edicaoUsuarios.scrollIntoView({block: 'start'})" [disabled]="saving">Alterar senha</button></div></td></tr>
+      } @empty { @if (!loading) { <tr><td colspan="3">Nenhum usuário carregado.</td></tr> } }
+    </tbody></table>
+  </div>
+  <button class="btn-finance-secondary users-reload" type="button" (click)="carregar()" [disabled]="loading">{{ loading ? 'Atualizando…' : 'Atualizar lista' }}</button>
+
+  <section class="users-editor" #edicaoUsuarios aria-label="Edição de acesso">
+    @if (!senhaUsuario) {
+      <p class="eyebrow">{{ editingId === null ? 'Novo acesso' : 'Acesso selecionado' }}</p><h2>{{ editingId === null ? 'Cadastrar usuário' : 'Editar ' + form.controls.username.value }}</h2>
+      <form class="finance-form" [formGroup]="form" (ngSubmit)="salvar()" novalidate>
+        <div class="form-grid">
+          <div class="field-group"><label class="form-label" for="usuario-nome">Usuário</label><input id="usuario-nome" class="form-control" formControlName="username" autocomplete="off" maxlength="100" aria-describedby="usuario-nome-error" [attr.aria-invalid]="form.controls.username.touched && form.controls.username.invalid"><div id="usuario-nome-error" class="field-error" aria-live="polite">@if (form.controls.username.touched && form.controls.username.invalid) { Informe um usuário válido, com até 100 caracteres. }</div></div>
+          @if (editingId === null) { <div class="field-group"><label class="form-label" for="usuario-senha">Senha inicial (8 a 72 caracteres)</label><input id="usuario-senha" class="form-control" type="password" formControlName="password" autocomplete="new-password" aria-describedby="usuario-senha-error"><div id="usuario-senha-error" class="field-error" aria-live="polite">@if (form.controls.password.touched && form.controls.password.invalid) { A senha deve conter entre 8 e 72 caracteres. }</div></div> }
+          <div class="field-group"><label class="form-label" for="usuario-papel">Permissão</label><select id="usuario-papel" class="form-select" formControlName="papel"><option value="USER">USER</option><option value="ADMIN">ADMIN</option></select></div>
+          @if (editingId !== null) { <div class="field-group user-active-field"><label for="usuario-ativo"><input id="usuario-ativo" type="checkbox" formControlName="ativo"> Usuário ativo</label></div> }
+        </div>
+        @if (editingId !== null) { <p class="field-help">Alterações de usuário, permissão ou status encerram as sessões anteriores dessa conta. O último ADMIN ativo permanece protegido.</p> }
+        <div class="form-actions"><button class="btn-finance-primary" type="submit" [disabled]="saving">{{ saving ? 'Salvando…' : 'Salvar' }}</button><button class="btn-finance-secondary" type="button" (click)="novo()" [disabled]="saving">Novo / cancelar edição</button></div>
+      </form>
+    }
+    @if (senhaUsuario; as user) {
+      <p class="eyebrow">Segurança de acesso</p><h2>Alterar senha de {{ user.username }}</h2>
+      <dl data-testid="senha-destinatario" class="password-target"><div><dt>Usuário selecionado</dt><dd>{{ user.username }} (ID {{ user.id }})</dd></div><div><dt>Permissão</dt><dd>{{ user.papel }}</dd></div><div><dt>Status</dt><dd>{{ user.ativo ? 'Ativo' : 'Inativo' }}</dd></div></dl>
+      <form class="finance-form" [formGroup]="senhaForm" (ngSubmit)="salvarSenha()" novalidate><div class="field-group"><label class="form-label" for="nova-senha">Nova senha (8 a 72 caracteres)</label><input id="nova-senha" class="form-control" type="password" formControlName="password" autocomplete="new-password" aria-describedby="nova-senha-help nova-senha-error"><p id="nova-senha-help" class="field-help">A troca de senha encerra as sessões anteriores do usuário selecionado.</p><div id="nova-senha-error" class="field-error" aria-live="polite">@if (senhaForm.controls.password.touched && senhaForm.controls.password.invalid) { Informe uma senha entre 8 e 72 caracteres. }</div></div><div class="form-actions"><button class="btn-finance-primary" type="submit" [disabled]="saving || senhaForm.invalid">{{ saving ? 'Salvando…' : 'Alterar senha' }}</button><button type="button" class="btn-finance-secondary" [disabled]="saving" (click)="senhaUsuario = null; senhaForm.reset()">Cancelar</button></div></form>
+    }
+  </section>
+</div>

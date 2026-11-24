@@ -6,6 +6,7 @@ import { ApiError } from '../../core/api/api-error.interceptor';
 import { Corretora } from '../../core/api/api.models';
 import { CorretoraService } from '../../services/corretora.service';
 import { CorretoraListComponent } from './corretora-list.component';
+import { AuthService } from '../../core/auth/auth.service';
 
 describe('CorretoraListComponent', () => {
   const corretora: Corretora = {
@@ -29,6 +30,7 @@ describe('CorretoraListComponent', () => {
       imports: [CorretoraListComponent],
       providers: [
         provideRouter([]),
+        { provide: AuthService, useValue: { hasRole: () => true } },
         { provide: CorretoraService, useValue: service }
       ]
     })
@@ -50,6 +52,13 @@ describe('CorretoraListComponent', () => {
     response.complete();
     expect(component.listState.loading).toBeFalse();
     expect(component.listState.data).toEqual([]);
+  });
+  it('oculta cadastro de corretora para USER e mantém a consulta', () => {
+    spyOn(component.auth, 'hasRole').and.returnValue(false);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('a[href="/corretoras/nova"]')).toBeNull();
+    expect(host.querySelector('form')).not.toBeNull();
   });
 
   it('mantém erro de listagem e permite nova tentativa', () => {
@@ -141,6 +150,6 @@ describe('CorretoraListComponent', () => {
     expect(host.querySelector('a.btn-finance-primary')).not.toBeNull();
     const table = host.querySelector('table.finance-table') as HTMLTableElement;
     expect(table.classList).toContain('table-hover');
-    expect(getComputedStyle(table).getPropertyValue('--bs-table-hover-bg').trim()).toBe('#f4f8fa');
+    expect(getComputedStyle(table).getPropertyValue('--bs-table-hover-bg').trim()).toBe('#edf0e8');
   });
 });

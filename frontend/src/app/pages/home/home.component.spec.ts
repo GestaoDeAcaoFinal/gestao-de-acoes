@@ -8,6 +8,8 @@ import { of } from 'rxjs';
 import { OperacaoAcao, ResumoCarteira } from '../../core/api/api.models';
 import { OperacaoService } from '../../services/operacao.service';
 import { HomeComponent } from './home.component';
+import { AuthService } from '../../core/auth/auth.service';
+import { AcaoService } from '../../services/acao.service';
 
 registerLocaleData(localePt, 'pt-BR');
 
@@ -78,6 +80,8 @@ describe('HomeComponent', () => {
     await TestBed.configureTestingModule({
       imports: [HomeComponent],
       providers: [
+        { provide: AuthService, useValue: { hasRole: () => false } },
+        { provide: AcaoService, useValue: {} },
         provideRouter([]),
         { provide: LOCALE_ID, useValue: 'pt-BR' },
         { provide: OperacaoService, useValue: operacaoService }
@@ -92,7 +96,7 @@ describe('HomeComponent', () => {
 
   it('apresenta indicadores financeiros obtidos da API', () => {
     const host = fixture.nativeElement as HTMLElement;
-    expect(host.querySelector('h1')?.textContent).toContain('Visão consolidada');
+    expect(host.querySelector('h1')?.textContent).toContain('Um olhar sobre');
     expect(host.querySelector('[data-testid="valor-atual"]')?.textContent).toMatch(/R\$\s*420,00/);
     expect(host.querySelector('[data-testid="custo-total"]')?.textContent).toMatch(/R\$\s*360,00/);
     expect(host.querySelector('[data-testid="resultado"]')?.textContent).toMatch(/R\$\s*60,00/);
@@ -101,18 +105,18 @@ describe('HomeComponent', () => {
 
   it('mostra a distribuição por ativo e as operações mais recentes', () => {
     const host = fixture.nativeElement as HTMLElement;
-    const allocations = Array.from(host.querySelectorAll('.allocation-row'));
+    const allocations = Array.from(host.querySelectorAll('.allocation-segment'));
     const recentOperations = Array.from(host.querySelectorAll('.recent-operation'));
 
     expect(allocations.length).toBe(2);
-    expect(allocations[0].textContent).toContain('PETR4');
-    expect(allocations[0].querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow')).toBe('66.67');
+    expect(allocations[0].getAttribute('aria-label')).toContain('PETR4');
+    expect(parseFloat((allocations[0] as HTMLElement).style.width)).toBeCloseTo(280 / 420 * 100, 3);
     expect(recentOperations.length).toBe(2);
     expect(recentOperations[0].textContent).toContain('PETR4');
     expect(recentOperations[1].textContent).toContain('VALE3');
   });
 
-  it('renderiza as cinco maiores posições sem reduzir os totais dos KPIs', () => {
+  it('distribui todas as posições numa barra sem reduzir os totais dos KPIs', () => {
     component.carteiraState.data = {
       ...carteira,
       quantidadeTotal: 19,
@@ -129,16 +133,50 @@ describe('HomeComponent', () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    const allocations = Array.from(host.querySelectorAll('.allocation-row'));
-    const tickers = allocations.map(row => row.querySelector('.ticker-badge')?.textContent?.trim());
+    const allocations = Array.from(host.querySelectorAll<HTMLButtonElement>('.allocation-segment'));
+    const tickers = Array.from(host.querySelectorAll('.allocation-legend__ticker')).map(label => label.textContent?.trim());
 
-    expect(allocations.length).toBe(5);
-    expect(tickers).toEqual(['PETR4', 'VALE3', 'ITUB4', 'BBDC4', 'WEGE3']);
-    expect(allocations[0].querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow')).toBe('44.09');
+    expect(allocations.length).toBe(6);
+    expect(tickers).toEqual(['PETR4', 'VALE3', 'ITUB4', 'BBDC4', 'WEGE3', 'ABEV3']);
+    expect(allocations.reduce((sum, segment) => sum + parseFloat(segment.style.width), 0)).toBeCloseTo(100, 3);
     expect(host.querySelector('[data-testid="valor-atual"]')?.textContent).toMatch(/R\$\s*635,00/);
     expect(host.querySelector('[data-testid="custo-total"]')?.textContent).toMatch(/R\$\s*527,00/);
     expect(host.querySelector('[data-testid="resultado"]')?.textContent).toMatch(/R\$\s*108,00/);
     expect(host.querySelector('[data-testid="quantidade-total"]')?.textContent).toContain('19');
+  });
+
+  it('permite selecionar um segmento com mouse e um ativo pequeno pela legenda ou teclado', () => {
+    const host = fixture.nativeElement as HTMLElement;
+    const segments = host.querySelectorAll<HTMLButtonElement>('.allocation-segment');
+    expect(segments.length).toBe(2);
+    if (segments.length !== 2) return;
+    segments[1].dispatchEvent(new MouseEvent('mouseenter'));
+    fixture.detectChanges();
+    expect(host.querySelector('[data-testid="allocation-detail"]')?.textContent).toContain('VALE3');
+    const legend = host.querySelectorAll<HTMLButtonElement>('.allocation-legend__button');
+    legend[0].click(); fixture.detectChanges();
+    expect(host.querySelector('[data-testid="allocation-detail"]')?.textContent).toContain('PETR4');
+    legend[1].dispatchEvent(new FocusEvent('focus')); fixture.detectChanges();
+    expect(legend[1].getAttribute('aria-pressed')).toBe('true');
+    expect(host.querySelector('[data-testid="allocation-detail"]')?.textContent).toContain('VALE3');
+  });
+
+  it('preserva a proporção de participações pequenas e não divide por zero', () => {
+    component.carteiraState.data = { ...carteira, valorAtualCarteira: 1000, posicoes: [
+      { ...carteira.posicoes[0], valorAtual: 999 }, { ...carteira.posicoes[1], valorAtual: 1 }
+    ] };
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const small = host.querySelectorAll<HTMLButtonElement>('.allocation-segment')[1];
+    expect(small).toBeDefined();
+    if (!small) return;
+    expect(parseFloat(small.style.width)).toBeCloseTo(0.1, 5);
+    component.carteiraState.data = { ...carteira, valorAtualCarteira: 0, posicoes: [
+      { ...carteira.posicoes[0], valorAtual: 0 }
+    ] };
+    fixture.detectChanges();
+    expect(host.innerHTML).not.toContain('NaN');
+    expect(host.innerHTML).not.toContain('Infinity');
   });
 
   it('renderiza somente as cinco operações mais recentes em ordem e na moeda local', () => {
@@ -206,7 +244,7 @@ describe('HomeComponent', () => {
 
   it('oferece acesso direto à carteira e ao extrato sem duplicar cadastros', () => {
     const host = fixture.nativeElement as HTMLElement;
-    expect(host.querySelector('h1')?.textContent).toContain('Visão consolidada');
+    expect(host.querySelector('h1')?.textContent).toContain('Um olhar sobre');
     expect(host.querySelector('a[href="/carteira"]')).not.toBeNull();
     expect(host.querySelector('a[href="/operacoes"]')).not.toBeNull();
     expect(host.querySelector('.quick-grid')).toBeNull();

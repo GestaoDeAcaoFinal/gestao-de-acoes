@@ -3,6 +3,7 @@ name: nexo-capital
 services:
   postgres:
     image: postgres:17-alpine
+    profiles: ["postgresql"]
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-gestaodeacao}
       POSTGRES_USER: ${POSTGRES_USER:-gestao}
@@ -26,15 +27,22 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: dev
       DDL_AUTO: validate
-      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-gestaodeacao}
-      DB_USERNAME: ${POSTGRES_USER:-gestao}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-local-postgres-password}
+      DB_URL: ${DB_URL:-jdbc:postgresql://postgres:5432/${POSTGRES_DB:-gestaodeacao}}
+      DB_USERNAME: ${DB_USERNAME:-${POSTGRES_USER:-gestao}}
+      DB_PASSWORD: ${DB_PASSWORD:-${POSTGRES_PASSWORD:-local-postgres-password}}
       TWELVE_DATA_API_KEY: ${TWELVE_DATA_API_KEY:-test-key}
+      BRAPI_TOKEN: ${BRAPI_TOKEN:-}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET obrigatorio}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-60m}
+      JWT_ISSUER: ${JWT_ISSUER:-gestaodeacao}
+      APP_ADMIN_USERNAME: ${APP_ADMIN_USERNAME:-admin}
+      APP_ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD:?APP_ADMIN_PASSWORD obrigatorio}
     ports:
       - "127.0.0.1:${APP_PORT:-8080}:8080"
     depends_on:
       postgres:
         condition: service_healthy
+        required: false
 
   frontend:
     image: nexo-capital-web:local

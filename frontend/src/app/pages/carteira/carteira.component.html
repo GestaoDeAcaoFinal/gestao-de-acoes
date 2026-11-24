@@ -16,9 +16,10 @@
       class="btn-finance-secondary"
       [disabled]="carteiraState.loading"
       (click)="carregarCarteira()">
-      Atualizar
+      Recarregar carteira
     </button>
   </header>
+  <app-atualizar-cotacoes [bloqueado]="carteiraState.loading" (atualizadas)="carregarCarteira()" />
 
   <section class="portfolio-panel surface-card" aria-labelledby="carteira-titulo">
     @if (carteiraState.loading) {
@@ -76,6 +77,7 @@
             <span>As novas compras aparecerão aqui.</span>
           </div>
         } @else {
+          <p class="table-scroll-hint">Deslize a tabela para ver todas as colunas.</p>
           <div class="table-responsive">
             <table class="table finance-table portfolio-table align-middle">
               <caption class="visually-hidden">Posições atuais da carteira</caption>

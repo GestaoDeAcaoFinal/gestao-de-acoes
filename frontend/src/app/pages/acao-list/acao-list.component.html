@@ -1,145 +1,61 @@
-<div class="page-shell">
-  <nav class="breadcrumb-nav" aria-label="Navegação estrutural">
-    <a routerLink="/">Início</a>
-    <span aria-hidden="true">/</span>
-    <span aria-current="page">Ações</span>
-  </nav>
-
+<div class="page-shell stocks-page">
   <header class="list-toolbar">
-    <div class="list-toolbar__copy">
-      <p class="eyebrow">Ativos</p>
-      <h1 class="page-heading">Ações</h1>
-      <p class="form-intro">Consulte ativos e atualize suas cotações.</p>
-    </div>
-    <a routerLink="/acoes/nova" class="btn-finance-primary">Nova ação</a>
+    <div class="list-toolbar__copy"><p class="eyebrow">Catálogo compartilhado</p><h1 class="page-heading">Ações</h1><p class="form-intro">Encontre os ativos. Acompanhe as cotações disponíveis.</p></div>
+    @if (auth.hasRole('ADMIN')) { <a routerLink="/acoes/nova" class="btn-finance-primary"><lucide-icon class="ui-icon" [img]="icons.Plus" [size]="18" aria-hidden="true"></lucide-icon>Nova ação</a> }
   </header>
-
-  <section class="filter-panel surface-card" aria-labelledby="consulta-acao">
-    <div class="panel-heading">
-      <p class="eyebrow">Localização rápida</p>
-      <h2 id="consulta-acao">Consulta direta</h2>
-      <p>Encontre um ativo pelo identificador interno ou ticker.</p>
-    </div>
-    <form class="row g-3 align-items-end" [formGroup]="searchForm" (ngSubmit)="buscar()" novalidate>
-      <div class="col-md-3">
-        <label for="criterio" class="form-label">Consultar por</label>
-        <select id="criterio" class="form-select" formControlName="criterio">
-          <option value="id">ID</option>
-          <option value="ticker">Ticker</option>
-        </select>
-      </div>
-      <div class="col-md-6">
-        <label for="valor" class="form-label">Valor</label>
-        <input id="valor" class="form-control" formControlName="valor" autocomplete="off">
-        @if (searchForm.controls.valor.touched && searchForm.controls.valor.invalid) {
-          <div class="field-error" role="alert">Informe um ID positivo ou ticker válido.</div>
-        }
-      </div>
-      <div class="col-md-3">
-        <button class="btn-finance-secondary w-100" type="submit" [disabled]="searchState.loading">
-          {{ searchState.loading ? 'Consultando…' : 'Consultar' }}
-        </button>
-      </div>
-    </form>
-    @if (searchState.loading) {
-      <div class="status-panel mt-3" role="status" aria-live="polite">Consultando ação…</div>
-    } @else if (searchState.error) {
-      <div class="status-panel status-panel--error mt-3" role="alert">{{ searchState.error.message }}</div>
-    } @else {
-      @if (searchState.data; as a) {
-        <div class="search-result search-result--action mt-3" role="status">
-        <div>
-          <span class="ticker-badge">{{ a.ticker }}</span>
-          <strong>{{ a.nomeEmpresa || 'Empresa não informada' }}</strong>
-          <span>{{ a.corretoraRelacionada.razaoSocial || a.corretoraRelacionada.cnpj }}</span>
-        </div>
-        <button
-          type="button"
-          class="btn-finance-secondary"
-          (click)="atualizarCotacao(a)"
-          [disabled]="updating.has(a.id)"
-          [attr.aria-label]="'Atualizar cotação de ' + a.ticker">
-          {{ updating.has(a.id) ? 'Atualizando…' : 'Atualizar cotação' }}
-        </button>
-        @if (updateErrors[a.id]) {
-          <div class="field-error" role="alert">{{ updateErrors[a.id].message }}</div>
-        }
+  <div class="stock-toolbar" [formGroup]="filtroForm">
+    <label class="stock-search" for="stock-filter"><lucide-icon class="ui-icon" [img]="icons.Search" [size]="18" aria-hidden="true"></lucide-icon><span class="visually-hidden">Pesquisar ticker ou empresa</span><input class="form-control" id="stock-filter" type="search" data-testid="stock-filter" formControlName="texto" placeholder="Pesquisar ticker ou empresa"></label>
+    <label for="stock-market" class="stock-market"><span class="visually-hidden">Filtrar por mercado</span><select id="stock-market" class="form-select" formControlName="mercado"><option value="">Todos os mercados</option>@for (mercado of mercadosDisponiveis; track mercado) { <option [value]="mercado">{{ mercado }}</option> }</select></label>
+    <app-atualizar-cotacoes [bloqueado]="listState.loading" (atualizadas)="carregarAcoes()" />
+  </div>
+  <details class="stock-direct-search">
+    <summary>Consulta direta por ID ou ticker</summary>
+    <section class="filter-panel" aria-labelledby="consulta-acao">
+      <h2 id="consulta-acao" class="form-section-title">Consulta direta</h2>
+      <form class="row g-3 align-items-end mt-1" [formGroup]="searchForm" (ngSubmit)="buscar()" novalidate>
+        <div class="col-md-3"><label for="criterio" class="form-label">Consultar por</label><select id="criterio" class="form-select" formControlName="criterio"><option value="id">ID</option><option value="ticker">Ticker</option></select></div>
+        <div class="col-md-6"><label for="valor" class="form-label">Valor</label><input id="valor" class="form-control" formControlName="valor" autocomplete="off" aria-describedby="stock-search-error"><div id="stock-search-error" class="field-error" aria-live="polite">@if (searchForm.controls.valor.touched && searchForm.controls.valor.invalid) { Informe um ID positivo ou ticker válido. }</div></div>
+        <div class="col-md-3"><button class="btn-finance-secondary w-100" type="submit" [disabled]="searchState.loading">{{ searchState.loading ? 'Consultando…' : 'Consultar' }}</button></div>
+      </form>
+      @if (searchState.loading) { <div class="status-panel mt-3" role="status" aria-live="polite">Consultando ação…</div> }
+      @else if (searchState.error) { <div class="status-panel status-panel--error mt-3" role="alert">{{ searchState.error.message }}</div> }
+      @else if (searchState.data; as a) {
+        <div class="search-result search-result--action mt-3" role="status"><div><span class="ticker-badge">{{ a.ticker }}</span><strong>{{ a.nomeEmpresa || 'Empresa não informada' }}</strong><span>{{ a.corretoraRelacionada.razaoSocial || a.corretoraRelacionada.cnpj }}</span></div>
+          @if (auth.hasRole('ADMIN')) { <button type="button" class="btn-finance-secondary" (click)="atualizarCotacao(a)" [disabled]="updating.has(a.id)" [attr.aria-label]="'Atualizar cotação de ' + a.ticker">{{ updating.has(a.id) ? 'Atualizando…' : 'Atualizar cotação' }}</button> }
+          @if (updateErrors[a.id]) { <div class="field-error" role="alert">{{ updateErrors[a.id].message }}</div> }
         </div>
       }
-    }
-  </section>
-
+    </section>
+  </details>
   @if (listState.loading) {
-    <section class="status-panel surface-card" role="status" aria-live="polite">
-      <strong>Carregando ações…</strong>
-      <span>As posições cadastradas estão sendo consultadas.</span>
-    </section>
+    <section class="status-panel" role="status" aria-live="polite"><strong>Carregando ações…</strong><span>Consultando o catálogo de ativos.</span></section>
   } @else if (listState.error) {
-    <section class="status-panel status-panel--error surface-card" role="alert">
-      <strong>Não foi possível carregar as ações.</strong>
-      <span>{{ listState.error.message }}</span>
-      <button type="button" class="btn-finance-secondary" (click)="carregarAcoes()">Tentar novamente</button>
-    </section>
+    <section class="status-panel status-panel--error" role="alert"><strong>Não foi possível carregar as ações.</strong><span>{{ listState.error.message }}</span><button class="btn-finance-secondary" type="button" (click)="carregarAcoes()">Tentar novamente</button></section>
   } @else if (listState.data?.length === 0) {
-    <section class="status-panel surface-card">
-      <strong>Nenhuma ação cadastrada.</strong>
-      <span>Cadastre um ativo para acompanhar suas cotações.</span>
-    </section>
+    <section class="status-panel"><strong>Nenhuma ação cadastrada.</strong><span>Os ativos cadastrados aparecerão aqui.</span></section>
   } @else if (listState.data) {
-    <section class="table-panel surface-card" aria-labelledby="acoes-cadastradas">
-      <div class="table-panel__header">
-        <div>
-          <p class="eyebrow">Carteira de ativos</p>
-          <h2 id="acoes-cadastradas">Ações cadastradas</h2>
-        </div>
-      </div>
-      <div class="table-responsive">
-        <table class="table table-hover finance-table align-middle">
-          <caption class="visually-hidden">Lista de ações cadastradas e cotações</caption>
-          <thead>
-            <tr>
-              <th class="numeric" scope="col">ID</th>
-              <th scope="col">Ativo</th>
-              <th scope="col">Empresa</th>
-              <th scope="col">Mercado</th>
-              <th scope="col">Moeda</th>
-              <th scope="col">Corretora</th>
-              <th class="numeric" scope="col">Cotação</th>
-              <th scope="col">Atualização</th>
-              <th scope="col">Ação</th>
+    <section class="stock-results" aria-labelledby="acoes-cadastradas">
+      <div class="stock-results__heading"><h2 id="acoes-cadastradas">Ações cadastradas</h2><span class="record-count" aria-live="polite">{{ acoesFiltradas.length }} de {{ listState.data.length }} ativos</span></div>
+      <div class="table-responsive"><table class="table table-hover finance-table stock-table align-middle">
+        <caption class="visually-hidden">Lista de ações cadastradas e cotações</caption>
+        <thead><tr><th scope="col">Ativo / empresa</th><th scope="col" class="stock-extra">Mercado</th><th scope="col" class="numeric">Cotação</th><th scope="col" class="stock-extra">Atualização</th><th scope="col" class="stock-extra">Corretora</th><th scope="col" class="stock-actions-heading">Ações</th></tr></thead>
+        <tbody>
+          @for (a of acoesFiltradas; track a.id) {
+            <tr class="stock-row">
+              <td><strong class="ticker-badge">{{ a.ticker }}</strong><span class="cell-secondary">{{ a.nomeEmpresa || 'Empresa não informada' }}</span></td>
+              <td class="stock-extra"><span class="market-badge">{{ a.mercado || 'Não informado' }}</span></td>
+              <td class="numeric"><strong>{{ a.cotacaoAtual === null ? 'Indisponível' : (a.cotacaoAtual | currency:(a.moeda || 'BRL')) }}</strong><span class="currency-code">{{ a.moeda || 'BRL' }}</span></td>
+              <td class="stock-extra"><span class="cell-secondary">{{ a.dataHoraCotacao ? (a.dataHoraCotacao | date:'short') : 'Não atualizada' }}</span></td>
+              <td class="stock-extra">{{ a.corretoraRelacionada.razaoSocial || a.corretoraRelacionada.cnpj }}</td>
+              <td><div class="stock-row-actions"><button class="btn-finance-secondary table-action" type="button" (click)="alternarDetalhes(a.id)" [attr.data-testid]="'stock-detail-' + a.id" [attr.aria-expanded]="detalhesAbertos.has(a.id)" [attr.aria-controls]="'stock-details-' + a.id" [attr.aria-label]="(detalhesAbertos.has(a.id) ? 'Ocultar detalhes de ' : 'Ver detalhes de ') + a.ticker">Detalhes<lucide-icon class="ui-icon" [img]="icons.ChevronDown" [size]="18" aria-hidden="true"></lucide-icon></button>
+
+              </div>@if (updateErrors[a.id]) { <p class="field-error mt-2" role="alert">{{ updateErrors[a.id].message }}</p> }</td>
             </tr>
-          </thead>
-          <tbody>
-            @for (a of listState.data; track a.id) {
-              <tr>
-                <td class="numeric">{{ a.id }}</td>
-                <td><span class="ticker-badge">{{ a.ticker }}</span></td>
-                <td>
-                  <strong class="cell-primary">{{ a.nomeEmpresa || 'Empresa não informada' }}</strong>
-                </td>
-                <td><span class="market-badge">{{ a.mercado || 'Não informado' }}</span></td>
-                <td><span class="currency-code">{{ a.moeda || 'BRL' }}</span></td>
-                <td>{{ a.corretoraRelacionada.razaoSocial || a.corretoraRelacionada.cnpj }}</td>
-                <td class="numeric">{{ a.cotacaoAtual === null ? 'Indisponível' : (a.cotacaoAtual | currency:(a.moeda || 'BRL')) }}</td>
-                <td><span class="cell-secondary">{{ a.dataHoraCotacao ? (a.dataHoraCotacao | date:'short') : 'Não atualizada' }}</span></td>
-                <td>
-                  <button
-                    type="button"
-                    class="btn-finance-secondary table-action"
-                    (click)="atualizarCotacao(a)"
-                    [disabled]="updating.has(a.id)"
-                    [attr.aria-label]="'Atualizar cotação de ' + a.ticker">
-                    {{ updating.has(a.id) ? 'Atualizando…' : 'Atualizar cotação' }}
-                  </button>
-                  @if (updateErrors[a.id]) {
-                    <div class="field-error" role="alert">{{ updateErrors[a.id].message }}</div>
-                  }
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
+            <tr class="stock-detail-row" [id]="'stock-details-' + a.id" [hidden]="!detalhesAbertos.has(a.id)"><td colspan="6"><dl class="stock-details"><div><dt>Identificador</dt><dd>{{ a.id }}</dd></div><div><dt>Empresa</dt><dd>{{ a.nomeEmpresa || 'Empresa não informada' }}</dd></div><div><dt>Mercado / moeda</dt><dd>{{ a.mercado || 'Não informado' }} / {{ a.moeda || 'BRL' }}</dd></div><div><dt>Corretora</dt><dd>{{ a.corretoraRelacionada.razaoSocial || a.corretoraRelacionada.cnpj }}</dd></div><div><dt>Última cotação</dt><dd>{{ a.dataHoraCotacao ? (a.dataHoraCotacao | date:'short') : 'Não atualizada' }}</dd></div></dl><div class="stock-detail-actions">@if (auth.hasRole('ADMIN')) { <button type="button" class="btn-finance-secondary table-action stock-update" (click)="atualizarCotacao(a)" [disabled]="updating.has(a.id)" [attr.aria-label]="'Atualizar cotação de ' + a.ticker"><lucide-icon class="ui-icon" [img]="icons.RefreshCw" [size]="18" aria-hidden="true"></lucide-icon><span>{{ updating.has(a.id) ? 'Atualizando…' : 'Atualizar cotação' }}</span></button> }</div></td></tr>
+          } @empty { <tr><td colspan="6"><div class="status-panel"><strong>Nenhum ativo encontrado para os filtros.</strong><button type="button" class="btn-finance-secondary" (click)="filtroForm.reset()">Limpar filtros</button></div></td></tr> }
+        </tbody>
+      </table></div>
     </section>
   }
+  <p class="catalog-note">O catálogo de ações é compartilhado. Sua carteira e suas operações permanecem individuais.</p>
 </div>

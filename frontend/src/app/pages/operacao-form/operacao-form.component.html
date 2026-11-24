@@ -10,10 +10,15 @@
   <header class="form-heading">
     <p class="eyebrow">Movimentação</p>
     <h1 class="page-heading">Nova operação</h1>
-    <p class="form-intro">Registre uma compra ou venda para manter a posição da carteira atualizada.</p>
+    <p class="form-intro">Registre o que aconteceu. Revise os dados antes de confirmar.</p>
   </header>
-
-  <section class="form-panel surface-card" aria-label="Dados da operação">
+  <ol class="operation-steps" aria-label="Etapas da operação">
+    <li [attr.aria-current]="etapa === 1 ? 'step' : null"><span>1</span>Preencher</li>
+    <li [attr.aria-current]="etapa === 2 ? 'step' : null"><span>2</span>Revisar e confirmar</li>
+    <li [attr.aria-current]="etapa === 3 ? 'step' : null"><span>3</span>Concluído</li>
+  </ol>
+  <div class="operation-layout">
+  <section class="form-panel operation-panel" aria-label="Dados da operação">
     @if (acoesState.loading) {
       <div class="status-panel" role="status" aria-live="polite">Carregando ações…</div>
     }
@@ -24,8 +29,22 @@
       </div>
     }
 
-    <form class="finance-form" [formGroup]="form" (ngSubmit)="salvar()" novalidate>
+    <form class="finance-form" [hidden]="!!revisao || !!state.data" [formGroup]="form" (ngSubmit)="salvar()" novalidate>
       <div class="form-grid">
+        <fieldset class="field-group operation-type-group" aria-describedby="tipo-operacao-help">
+          <legend class="form-label">Tipo de operação</legend>
+          <div class="operation-options">
+            <label class="operation-option" for="tipo-compra">
+              <input id="tipo-compra" type="radio" value="COMPRA" formControlName="tipoOperacao">
+              <span>Compra</span>
+            </label>
+            <label class="operation-option" for="tipo-venda">
+              <input id="tipo-venda" type="radio" value="VENDA" formControlName="tipoOperacao">
+              <span>Venda</span>
+            </label>
+          </div>
+          <p id="tipo-operacao-help" class="field-help">Escolha se os ativos entram ou saem da carteira.</p>
+        </fieldset>
         <div class="field-group field-group-wide">
           <label for="acao" class="form-label">Ação</label>
           <select
@@ -54,7 +73,7 @@
             <span class="market-badge">{{ acao.mercado || 'Mercado não informado' }}</span>
             <span class="currency-code">{{ moedaSelecionada }}</span>
             <strong class="numeric">
-              {{ acao.cotacaoAtual === null ? 'Cotação indisponível' : (acao.cotacaoAtual | currency:moedaSelecionada) }}
+              {{ acao.cotacaoAtual === null ? 'Cotação indisponível' : (acao.cotacaoAtual | currency:moedaSelecionada:'symbol':'1.2-20') }}
             </strong>
           </aside>
         }
@@ -77,20 +96,7 @@
           </div>
         </div>
 
-        <fieldset class="field-group operation-type-group" aria-describedby="tipo-operacao-help">
-          <legend class="form-label">Tipo de operação</legend>
-          <div class="operation-options">
-            <label class="operation-option" for="tipo-compra">
-              <input id="tipo-compra" type="radio" value="COMPRA" formControlName="tipoOperacao">
-              <span>Compra</span>
-            </label>
-            <label class="operation-option" for="tipo-venda">
-              <input id="tipo-venda" type="radio" value="VENDA" formControlName="tipoOperacao">
-              <span>Venda</span>
-            </label>
-          </div>
-          <p id="tipo-operacao-help" class="field-help">Escolha se os ativos entram ou saem da carteira.</p>
-        </fieldset>
+
 
         @if (form.controls.tipoOperacao.value === 'COMPRA') {
           <div class="field-group">
@@ -99,7 +105,7 @@
               id="preco-compra"
               type="number"
               min="0.01"
-              step="0.01"
+              step="any"
               class="form-control"
               formControlName="precoCompra"
               aria-describedby="preco-compra-help preco-compra-error"
@@ -120,7 +126,7 @@
               id="preco"
               type="number"
               min="0.01"
-              step="0.01"
+              step="any"
               class="form-control"
               formControlName="precoVenda"
               aria-describedby="preco-venda-help preco-venda-error"
@@ -144,22 +150,58 @@
 
       <div class="form-actions">
         <button class="btn-finance-primary" type="submit" [disabled]="state.loading || acoesState.loading">
-          {{ state.loading ? 'Processando…' : 'Salvar operação' }}
+          Revisar operação <lucide-icon class="ui-icon" [img]="icons.ArrowRight" [size]="18" aria-hidden="true"></lucide-icon>
         </button>
         <a routerLink="/operacoes" class="btn-finance-secondary">Cancelar</a>
       </div>
     </form>
+    @if (revisao && !state.data) {
+      <section class="operation-review" aria-labelledby="revisao-titulo">
+        <p class="eyebrow">Antes de registrar</p><h2 id="revisao-titulo" #reviewHeading tabindex="-1">Confira sua operação.</h2>
+        <p class="form-intro">A confirmação enviará os dados abaixo. Para alterar, volte à edição.</p>
+        <dl class="operation-review__details">
+          <div><dt>Operação</dt><dd>{{ revisao.tipo === 'COMPRA' ? 'Compra' : 'Venda' }}</dd></div>
+          <div><dt>Ativo</dt><dd>{{ revisao.ticker }} — {{ revisao.empresa }}</dd></div>
+          <div><dt>Quantidade</dt><dd>{{ revisao.quantidade }} ações</dd></div>
+          <div><dt>Preço unitário</dt><dd>{{ revisao.preco | currency:revisao.moeda:'symbol':'1.2-20' }}</dd></div>
+          <div><dt>Moeda</dt><dd>{{ revisao.moeda }}</dd></div>
+          <div><dt>Total</dt><dd data-testid="review-total">{{ revisao.total | currency:revisao.moeda }}</dd></div>
+        </dl>
+        @if (state.error) { <div class="status-panel status-panel--error" role="alert"><strong>{{ state.error.title }}:</strong> {{ state.error.message }}
+          @if (resultadoIncerto) { <p>O resultado do envio não foi confirmado. Confira o <a routerLink="/operacoes">histórico de operações</a> antes de registrar novamente. Não houve repetição automática.</p> }
+        </div> }
+        <div class="operation-review__actions">
+          <button class="btn-finance-secondary" type="button" data-testid="editar-operacao" (click)="editar()" [disabled]="state.loading"><lucide-icon class="ui-icon" [img]="icons.ArrowLeft" [size]="18" aria-hidden="true"></lucide-icon>Voltar e editar</button>
+          <button class="btn-finance-primary" type="button" data-testid="confirmar-operacao" (click)="confirmar()" [disabled]="state.loading || !!state.error">{{ state.loading ? 'Processando…' : (revisao.tipo === 'COMPRA' ? 'Confirmar compra' : 'Confirmar venda') }}</button>
+        </div>
+        @if (state.loading) { <p class="field-help" role="status" aria-live="polite">Registrando a operação. Aguarde a confirmação.</p> }
+      </section>
+    }
   </section>
+  @if (!state.data) {
+    <aside class="operation-summary" aria-label="Resumo da operação">
+      <p class="eyebrow">Resumo da operação</p>
+      @if (resumo; as r) {
+        <h2>{{ r.ticker }}</h2><p class="field-help">{{ r.empresa }}</p>
+        <dl><div><dt>Tipo</dt><dd>{{ r.tipo === 'COMPRA' ? 'Compra' : 'Venda' }}</dd></div><div><dt>Quantidade</dt><dd>{{ r.quantidade }} ações</dd></div><div><dt>Preço unitário</dt><dd>{{ r.preco | currency:r.moeda:'symbol':'1.2-20' }}</dd></div></dl>
+        <div class="operation-summary__total"><span>Total da operação</span><strong>{{ r.total | currency:r.moeda }}</strong><small>Quantidade × preço unitário · {{ r.moeda }}</small></div>
+      } @else { <h2>Seu próximo registro.</h2><p class="field-help">Selecione o ativo para acompanhar o resumo.</p> }
+      <p class="operation-summary__note">As permissões e a quantidade disponível para venda serão conferidas ao registrar.</p>
+    </aside>
+  }
+  </div>
 
   @if (!state.loading && !state.error && state.data; as op) {
     <section class="result-card surface-card" aria-labelledby="operacao-registrada">
       <p class="eyebrow">Movimentação concluída</p>
-      <h2 id="operacao-registrada">Operação registrada</h2>
+      <h2 id="operacao-registrada" tabindex="-1">Operação registrada</h2>
+      <p role="status" aria-live="polite">{{ state.successMessage }}</p>
       <p><strong>Tipo:</strong> {{ op.tipoOperacao }}</p>
       <p><strong>Ticker:</strong> {{ op.acao.ticker }}</p>
       <p><strong>Quantidade:</strong> {{ op.quantidade }}</p>
       <p><strong>Total:</strong> {{ op.valorTotal | currency:(op.acao.moeda || 'BRL') }}</p>
       <p><strong>Data:</strong> {{ op.dataOperacao | date:"dd/MM/yyyy 'às' HH:mm" }}</p>
+      <div class="form-actions mt-4"><button type="button" class="btn-finance-primary" (click)="novaOperacao()">Nova operação</button><a routerLink="/operacoes" class="btn-finance-secondary">Ver histórico</a></div>
     </section>
   }
 </div>

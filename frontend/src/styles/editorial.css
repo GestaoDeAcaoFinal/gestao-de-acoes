@@ -1,0 +1,44 @@
+.page-shell { width: min(1180px, calc(100% - 3rem)); padding-top: 2.75rem; }
+.app-container { width: min(1180px, calc(100% - 3rem)); }
+.page-heading { font-weight: 500; font-size: clamp(2rem, 4vw, 2.75rem); }
+.eyebrow { font-weight: 600; font-size: .75rem; letter-spacing: .13em; margin-bottom: .75rem; }
+.form-intro { color: var(--color-muted); line-height: 1.7; }
+.surface-card { box-shadow: none; }
+.btn-finance-primary, .btn-finance-secondary { gap: .5rem; font-weight: 600; font-size: .875rem; transition: background-color .15s ease; }
+.btn-finance-primary:hover { transform: none; background: var(--color-primary-hover); }
+.btn-finance-primary:active { background: #1d302a; }
+.btn-finance-secondary { border-color: var(--color-control-border); color: var(--color-primary); }
+.btn-finance-secondary:hover { background: var(--color-surface-muted); color: var(--color-text); border-color: var(--color-primary); }
+.btn-finance-secondary:active { background: #dce3d6; }
+.btn-finance-primary:disabled, .btn-finance-secondary:disabled { opacity: .65; }
+.list-toolbar { align-items: end; margin-bottom: 2rem; }
+.panel-heading h2, .table-panel__header h2, .result-card h2 { font-weight: 500; font-size: 1.4rem; }
+.form-label, .field-group .form-label { font-weight: 500; color: var(--color-text); }
+.field-help, .cell-secondary, .record-count { font-size: .8125rem; color: var(--color-muted); }
+.field-error { font-weight: 500; }
+.field-error:empty { display: none; }
+.status-panel { background: var(--color-surface-muted); color: var(--color-text); border: 1px solid var(--color-border); border-left: 3px solid var(--color-primary); border-radius: var(--radius-sm); text-align: left; font-size: .875rem; align-items: flex-start; }
+.status-panel strong { font-weight: 600; }
+.status-panel--error { background: #fbefeb; border-color: #dcb1a9; border-left-color: var(--color-danger); color: var(--color-danger); }
+.status-panel--success { background: #e9f1e7; border-left-color: var(--color-success); }
+.status-panel .btn-finance-secondary { align-self: flex-start; }
+.finance-table { --bs-table-bg: transparent; --bs-table-color: var(--color-text); --bs-table-hover-bg: #edf0e8; --bs-table-hover-color: var(--color-text); color: var(--color-text); font-size: .875rem; }
+.finance-table thead th { background: #eef0e8; border-color: var(--color-border); color: var(--color-muted); font-size: .8125rem; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.finance-table td strong, .cell-primary { color: var(--color-text); font-weight: 600; }
+.ticker-badge { color: var(--color-text); font-weight: 600; background: transparent; border-radius: 0; padding-inline: 0; font-size: .875rem; }
+.trade-badge, .entity-status, .market-badge, .currency-code { font-weight: 500; letter-spacing: 0; border-radius: .25rem; }
+.entity-status, .market-badge, .currency-code { background: var(--color-surface-muted); }
+.trade-badge--buy, .entity-status--verified { color: var(--color-success); background: #e9f1e7; border-color: #aec7b3; }
+.trade-badge--sell { color: var(--color-danger); background: #fbefeb; border: 1px solid #dcb1a9; }
+.finance-table > tbody > tr > td.value-positive { color: var(--color-success); font-weight: 600; }
+.finance-table > tbody > tr > td.value-negative { color: var(--color-danger); font-weight: 600; }
+.table-action { min-height: 2.75rem; }
+.filter-chip { border-color: var(--color-control-border); border-radius: var(--radius-sm); font-weight: 500; }
+.filter-chip:hover { background: var(--color-surface-muted); }
+.search-result { background: var(--color-surface-muted); border-color: var(--color-border); }
+.operation-option { background: var(--color-surface); border-color: var(--color-control-border); font-weight: 500; }
+.operation-option:has(input:checked) { background: var(--color-surface-muted); border-color: var(--color-primary); }
+.alert-danger { color: var(--color-danger); background: #fbefeb; border-color: #dcb1a9; }
+.alert-success { color: var(--color-success); background: #e9f1e7; border-color: #aec7b3; }
+.table-scroll-hint { display: none; }
+@media (max-width:760px) { .page-shell { width: min(100% - 2rem, 1180px); padding-top: 1.75rem; } .app-container { width: calc(100% - 2rem); } .list-toolbar { align-items: stretch; } .form-control, .form-select { font-size: 1rem; } .table-scroll-hint { display: block; color: var(--color-muted); font-size: .8125rem; margin: 1rem; } }

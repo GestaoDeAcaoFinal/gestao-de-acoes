@@ -55,6 +55,14 @@ describe('apiErrorInterceptor', () => {
     expect(received?.message).toBe('Não foi possível conectar à API. Tente novamente.');
     expect(received?.fieldErrors).toEqual({});
   });
+  it('explica falta de permissão quando o filtro de segurança retorna 403 sem corpo', () => {
+    let received: ApiError | undefined;
+    http.get('/resource').subscribe({ error: error => received = error });
+    httpTesting.expectOne('/resource').flush(null, { status: 403, statusText: 'Forbidden' });
+    expect(received?.title).toBe('Acesso não permitido');
+    expect(received?.message).toBe('Seu perfil não tem permissão para realizar esta ação.');
+    expect(received?.status).toBe(403);
+  });
 
   it('produz fallback estável para corpo de erro incompatível', () => {
     let received: ApiError | undefined;

@@ -1,0 +1,32 @@
+<div class="login-page">
+  <section class="login-card" aria-labelledby="login-title">
+    <div class="login-brand" aria-hidden="true">g<span>·</span></div>
+    <p class="eyebrow">Gestão de Ações</p>
+    <h1 id="login-title">Acesse sua carteira</h1>
+    <p class="login-intro">Entre com seu usuário para continuar.</p>
+
+    @if (errorMessage) {
+      <div class="alert alert-danger" role="alert">{{ errorMessage }}</div>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="login()" novalidate>
+      <div class="mb-3">
+        <label class="form-label" for="username">Usuário</label>
+        <input id="username" class="form-control" formControlName="username" autocomplete="username" [attr.aria-describedby]="form.controls.username.touched && form.controls.username.invalid ? 'login-username-error' : null" [attr.aria-invalid]="form.controls.username.touched && form.controls.username.invalid">
+        @if (form.controls.username.touched && form.controls.username.invalid) {
+          <div class="form-error" id="login-username-error" role="alert">Informe o usuário.</div>
+        }
+      </div>
+      <div class="mb-4">
+        <label class="form-label" for="password">Senha</label>
+        <input id="password" type="password" class="form-control" formControlName="password" autocomplete="current-password" [attr.aria-describedby]="form.controls.password.touched && form.controls.password.invalid ? 'login-password-error' : null" [attr.aria-invalid]="form.controls.password.touched && form.controls.password.invalid">
+        @if (form.controls.password.touched && form.controls.password.invalid) {
+          <div class="form-error" id="login-password-error" role="alert">Informe a senha.</div>
+        }
+      </div>
+      <button class="btn-finance-primary login-submit" type="submit" [disabled]="loading">
+        {{ loading ? 'Entrando…' : 'Entrar' }}
+      </button>
+    </form>
+  </section>
+</div>

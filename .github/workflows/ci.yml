@@ -1,54 +1,111 @@
-name: CI
+name: Full stack CI
 
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: fullstack-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: '17'
           cache: maven
           cache-dependency-path: backend/pom.xml
-      - name: Testar backend
-        run: mvn --batch-mode test
+      - name: Testes e cobertura do backend
+        run: mvn --batch-mode --no-transfer-progress -Dspring.test.context.cache.maxSize=2 verify
 
   frontend:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          node-version: "22"
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Instalar dependências
-        run: npm ci
-      - name: Testar frontend
-        env:
-          CHROME_BIN: /usr/bin/google-chrome
+      - run: npm ci
+      - name: Testes Angular
         run: npm test -- --watch=false --browsers=ChromeHeadless --progress=false
-      - name: Gerar build de produção
+      - name: Build de produção
         run: npm run build
 
-  compose:
+  integration:
+    needs: [backend, frontend]
     runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      E2E_BACKEND_DIR: ${{ github.workspace }}/backend
+      BACKEND_IMAGE: nexo-capital-api:ci
+      FRONTEND_IMAGE: nexo-capital-web:ci
+      JWT_SECRET: ci-synthetic-jwt-secret-not-for-production-012345678901234567890123456789
+      APP_ADMIN_PASSWORD: ci-synthetic-admin-not-for-production
+    defaults:
+      run:
+        working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
-      - name: Validar Docker Compose
-        run: docker compose config --quiet
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Validar Compose com banco interno e externo
+        working-directory: .
+        run: |
+          docker compose --profile postgresql config --quiet
+          docker compose config --quiet
+      - name: Instalar Chromium de teste
+        run: npx playwright install --with-deps chromium
+      - name: Testes ponta a ponta
+        run: npm run test:e2e
+      - name: Construir imagens de produção
+        working-directory: .
+        run: |
+          docker build --tag nexo-capital-api:ci backend
+          docker build --tag nexo-capital-web:ci frontend
+      - name: Validar Nginx, JWT, perfis e revogação em containers
+        run: npm run test:docker
+      - name: Relatórios E2E
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: fullstack-e2e-results
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          if-no-files-found: warn
+          retention-days: 7

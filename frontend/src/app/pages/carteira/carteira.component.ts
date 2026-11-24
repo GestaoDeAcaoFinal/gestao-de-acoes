@@ -1,6 +1,7 @@
 import { CurrencyPipe } from '@angular/common';
 import { Component, inject, OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { AtualizarCotacoesComponent } from '../acao-list/atualizar-cotacoes.component';
 
 import { ApiError } from '../../core/api/api-error.interceptor';
 import { ResumoCarteira } from '../../core/api/api.models';
@@ -9,7 +10,7 @@ import { OperacaoService } from '../../services/operacao.service';
 
 @Component({
   selector: 'app-carteira',
-  imports: [CurrencyPipe, RouterLink],
+  imports: [CurrencyPipe, RouterLink, AtualizarCotacoesComponent],
   templateUrl: './carteira.component.html',
   styleUrl: './carteira.component.css'
 })

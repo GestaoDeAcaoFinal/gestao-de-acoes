@@ -92,6 +92,23 @@ describe('AcaoFormComponent', () => {
     component.form.setValue({ ticker: 'P', corretoraId: 0 }); component.salvar();
     expect(acaoService.salvar).not.toHaveBeenCalled();
   });
+  it('valida ticker conforme o contrato do backend', () => {
+    const ticker = component.form.controls.ticker;
+    ticker.setValue('F'); expect(ticker.valid).toBeTrue();
+    ticker.setValue(' petr4 '); expect(ticker.valid).toBeTrue();
+    ticker.setValue('BRK.B'); expect(ticker.valid).toBeTrue();
+    ticker.setValue('123'); expect(ticker.valid).toBeFalse();
+  });
+  it('normaliza e envia classes com ponto preservando o contrato', () => {
+    acaoService.salvar.and.returnValue(of({ ...acao, ticker: 'BRK.A' }));
+    component.form.setValue({ ticker: ' brk.a ', corretoraId: 2 });
+    component.salvar();
+    expect(acaoService.salvar).toHaveBeenCalledOnceWith({ ticker: 'BRK.A', corretoraId: 2 });
+    for (const simbolo of ['.BRK', 'BRK.', 'BRK..B', 'BRK/B', 'BRK-B', 'BRK&B', '123.45', 'ABCDEFGHIJK.A']) {
+      component.form.controls.ticker.setValue(simbolo);
+      expect(component.form.controls.ticker.valid).withContext(simbolo).toBeFalse();
+    }
+  });
   it('envia somente ticker e corretoraId e bloqueia duplicidade', () => {
     const pending = new Subject<Acao>(); acaoService.salvar.and.returnValue(pending);
     component.form.setValue({ ticker: 'PETR4', corretoraId: 2 }); component.salvar(); component.salvar();

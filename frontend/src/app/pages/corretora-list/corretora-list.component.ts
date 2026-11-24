@@ -8,6 +8,7 @@ import { ApiError } from '../../core/api/api-error.interceptor';
 import { Corretora } from '../../core/api/api.models';
 import { initialRequestState, RequestState, toErrorState, toLoadingState, toSuccessState } from '../../core/state/request-state';
 import { CorretoraService } from '../../services/corretora.service';
+import { AuthService } from '../../core/auth/auth.service';
 
 type SearchCriterion = 'id' | 'cnpj';
 
@@ -18,6 +19,7 @@ type SearchCriterion = 'id' | 'cnpj';
   styleUrl: './corretora-list.component.css'
 })
 export class CorretoraListComponent implements OnInit {
+  readonly auth = inject(AuthService);
   private readonly formBuilder = inject(FormBuilder);
   private readonly corretoraService = inject(CorretoraService);
   readonly searchForm = this.formBuilder.nonNullable.group({

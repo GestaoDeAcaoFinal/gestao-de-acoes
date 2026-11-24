@@ -42,6 +42,12 @@ export function normalizeApiError(error: unknown): ApiError {
     );
   }
 
+  if (error.status === 403) {
+    return new ApiError(403, 'Acesso não permitido', 'Seu perfil não tem permissão para realizar esta ação.');
+  }
+  if (error.status === 401) {
+    return new ApiError(401, 'Autenticação necessária', 'Entre novamente para continuar.');
+  }
   return unexpectedError(error.status);
 }
 

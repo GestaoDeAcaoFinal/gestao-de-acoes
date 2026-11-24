@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { FormControl, FormGroup } from '@angular/forms';
 import { of, Subject, throwError } from 'rxjs';
 import { ApiError } from '../../core/api/api-error.interceptor';
 import { Acao, Corretora, OperacaoAcao } from '../../core/api/api.models';
@@ -11,12 +12,16 @@ const corretora: Corretora = { id: 1, cnpj: '12345678000190', razaoSocial: 'XP',
 const acao: Acao = { id: 3, ticker: 'PETR4', nomeEmpresa: null, mercado: 'B3', moeda: 'BRL', cotacaoAtual: 35, dataHoraCotacao: null, corretoraRelacionada: corretora };
 const op: OperacaoAcao = { id: 4, quantidade: 2, precoUnitario: 35, precoMedio: null, lucroPrejuizo: null, dataOperacao: '2026-09-04T10:00:00', valorTotal: 70, tipoOperacao: 'COMPRA', acao };
 describe('OperacaoListComponent', () => {
-  let fixture: ComponentFixture<OperacaoListComponent>; let component: OperacaoListComponent; let service: jasmine.SpyObj<OperacaoService>; let acaoService: jasmine.SpyObj<AcaoService>;
+  let fixture: ComponentFixture<OperacaoListComponent>; let component: OperacaoListComponent & {
+    filtrosForm: FormGroup<{ texto: FormControl<string>; inicio: FormControl<string>; fim: FormControl<string> }>;
+    operacoesFiltradas: OperacaoAcao[];
+    limparFiltros(): void;
+  }; let service: jasmine.SpyObj<OperacaoService>; let acaoService: jasmine.SpyObj<AcaoService>;
   beforeEach(async () => {
     service = jasmine.createSpyObj('OperacaoService', ['listar', 'listarCompras', 'listarVendas', 'listarHistorico', 'buscarPorId', 'resumirCarteira']); service.listar.and.returnValue(of([]));
     acaoService = jasmine.createSpyObj('AcaoService', ['listar']); acaoService.listar.and.returnValue(of([acao]));
     await TestBed.configureTestingModule({ imports: [OperacaoListComponent], providers: [provideRouter([]), { provide: OperacaoService, useValue: service }, { provide: AcaoService, useValue: acaoService }] }).compileComponents();
-    fixture = TestBed.createComponent(OperacaoListComponent); component = fixture.componentInstance; fixture.detectChanges();
+    fixture = TestBed.createComponent(OperacaoListComponent); component = fixture.componentInstance as typeof component; fixture.detectChanges();
   });
   it('representa vazio e retry após erro', () => { expect(component.listState.data).toEqual([]); service.listar.and.returnValue(throwError(() => new ApiError(503, 'Erro', 'Falhou.'))); component.carregar(); expect(component.listState.error).not.toBeNull(); service.listar.and.returnValue(of([op])); component.carregar(); expect(component.listState.data).toEqual([op]); });
   it('usa exatamente o endpoint do filtro selecionado', () => { service.listarCompras.and.returnValue(of([op])); component.aplicarFiltro('compras'); expect(service.listarCompras).toHaveBeenCalledTimes(1); service.listarVendas.and.returnValue(of([])); component.aplicarFiltro('vendas'); expect(service.listarVendas).toHaveBeenCalledTimes(1); service.listar.and.returnValue(of([op])); component.aplicarFiltro('todas'); expect(service.listar).toHaveBeenCalledTimes(2); });
@@ -86,16 +91,16 @@ describe('OperacaoListComponent', () => {
     expect(host.querySelector('[role="group"][aria-label="Filtros de operações"]')).not.toBeNull();
     const table = host.querySelector('[aria-labelledby="historico-operacoes"] table.finance-table') as HTMLTableElement;
     expect(table.classList).toContain('table-hover');
-    expect(getComputedStyle(table).getPropertyValue('--bs-table-hover-bg').trim()).toBe('#f4f8fa');
+    expect(getComputedStyle(table).getPropertyValue('--bs-table-hover-bg').trim()).toBe('#edf0e8');
     expect(table.querySelector('thead th')?.textContent?.trim()).toBe('ID');
     const firstId = table.querySelector('tbody td') as HTMLTableCellElement;
     expect(firstId.classList).toContain('numeric');
     expect(firstId.textContent?.trim()).toBe('4');
     expect(host.querySelector('.trade-badge')?.textContent).toContain('COMPRA');
     expect(getComputedStyle(host.querySelector('.value-positive') as HTMLElement).color)
-      .toBe('rgb(4, 120, 87)');
+      .toBe('rgb(33, 99, 72)');
     expect(getComputedStyle(host.querySelector('.value-negative') as HTMLElement).color)
-      .toBe('rgb(180, 35, 24)');
+      .toBe('rgb(161, 47, 44)');
   });
 
   it('mantém operações independente do resumo da carteira', () => {
@@ -104,5 +109,43 @@ describe('OperacaoListComponent', () => {
     expect(host.querySelector('.portfolio-panel')).toBeNull();
     expect(host.querySelector('[data-testid="quantidade-total"]')).toBeNull();
     expect(host.querySelector('[aria-label="Filtros de operações"]')).not.toBeNull();
+  });
+
+  it('filtra ticker sem diferenciar caixa e inclui os dois limites do período', () => {
+    component.listState.data = [op, { ...op, id: 5, dataOperacao: '2026-09-05T23:59:59' }, { ...op, id: 6, dataOperacao: '2026-09-06T00:00:00' }, { ...op, id: 7, acao: { ...acao, ticker: 'VALE3' } }];
+    component.filtrosForm.setValue({ texto: ' petr ', inicio: '2026-09-04', fim: '2026-09-05' });
+    expect(component.operacoesFiltradas.map(item => item.id)).toEqual([4, 5]);
+    component.filtrosForm.controls.texto.setValue('inexistente');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Nenhuma operação corresponde aos filtros');
+    expect(component.listState.data.length).toBe(4);
+  });
+
+  it('informa intervalo invertido e limpa todos os filtros sem perder o histórico', () => {
+    service.listarHistorico.and.returnValue(of([op]));
+    component.historicoForm.setValue({ acaoId: 3 }); component.buscarHistorico();
+    component.filtrosForm.setValue({ texto: 'PETR4', inicio: '2026-09-05', fim: '2026-09-04' });
+    fixture.detectChanges();
+    expect(component.filtrosForm.hasError('periodoInvertido')).toBeTrue();
+    expect(fixture.nativeElement.textContent).toContain('A data final deve ser igual ou posterior à inicial');
+    component.limparFiltros();
+    expect(component.filtrosForm.getRawValue()).toEqual({ texto: '', inicio: '', fim: '' });
+    expect(component.filtroAtivo).toBe('todas');
+    expect(component.historicoForm.controls.acaoId.value).toBe(0);
+    expect(service.listar).toHaveBeenCalledTimes(2);
+  });
+
+  it('expande detalhes com identidade, valores e precisão do preço original', () => {
+    component.listState.data = [{ ...op, precoUnitario: 35.125 }]; fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const botao = host.querySelector('button[aria-label="Detalhes da operação 4 de PETR4"]') as HTMLButtonElement;
+    expect(botao).not.toBeNull();
+    botao.click(); fixture.detectChanges();
+    expect(botao.getAttribute('aria-expanded')).toBe('true');
+    const detalhes = host.querySelector('#operacao-detalhes-4') as HTMLElement;
+    expect(detalhes.hidden).toBeFalse();
+    expect(detalhes.textContent).toContain('PETR4');
+    expect(detalhes.textContent).toMatch(/35[,.]125/);
+    botao.click(); fixture.detectChanges(); expect(detalhes.hidden).toBeTrue();
   });
 });
