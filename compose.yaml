@@ -1,4 +1,4 @@
-name: nexo-capital
+name: gestao-de-acao
 
 services:
   postgres:
@@ -20,7 +20,7 @@ services:
       start_period: 10s
 
   app-host-postgresql:
-    image: nexo-capital-api:local
+    image: gestao-de-acao:local
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -45,7 +45,7 @@ services:
         required: false
 
   frontend:
-    image: nexo-capital-web:local
+    image: gestao-acao-front:local
     build:
       context: ./frontend
       dockerfile: Dockerfile

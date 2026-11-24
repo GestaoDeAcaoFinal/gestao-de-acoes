@@ -92,7 +92,7 @@ Entre com o usuário definido em `APP_ADMIN_USERNAME` e a senha configurada em `
 docker compose up -d --build --wait app-host-postgresql frontend
 ```
 
-Nesse modo, apenas backend e frontend são iniciados. Os nomes internos do projeto Compose e das imagens ainda usam `nexo-capital` por compatibilidade com instalações existentes; renomear o repositório não exige trocar containers, volumes ou bancos.
+Nesse modo, apenas backend e frontend são iniciados. O grupo no Docker Desktop chama-se **`gestao-de-acao`**, com os serviços `app-host-postgresql` e `frontend`. As imagens locais são `gestao-de-acao:local` e `gestao-acao-front:local`. O banco do host e os volumes existentes não são removidos ao atualizar esses serviços.
 
 ### Configuração principal
 
