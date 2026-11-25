@@ -98,7 +98,7 @@ try {
 
   const userPassword = randomUUID();
   const createdUser = await (await api('/api/api/usuarios', 201, {
-    token: admin, method: 'POST', data: { username: 'validation_user', password: userPassword, papel: 'USER' }
+    token: admin, method: 'POST', data: { username: 'validation_user', cpf: '52998224725', telefone: '11999999999', password: userPassword, papel: 'USER' }
   })).json();
   const user = await login('validation_user', userPassword);
   await api('/api/acoes', 200, { token: user });
@@ -114,7 +114,7 @@ try {
   await api('/api/acoes', 200, { token: newUser });
   for (const ativo of [false, true]) {
     await api(`/api/api/usuarios/${createdUser.id}`, 200, {
-      token: admin, method: 'PUT', data: { username: 'validation_user', papel: 'USER', ativo }
+      token: admin, method: 'PUT', data: { username: 'validation_user', cpf: '52998224725', telefone: '11999999999', papel: 'USER', ativo }
     });
     await api('/api/acoes', 401, { token: newUser });
   }
@@ -124,7 +124,7 @@ try {
   const adminId = users.find(item => item.username === 'validation_admin')?.id;
   assert(adminId, 'Administrador sintético não localizado');
   await api(`/api/api/usuarios/${adminId}`, 409, {
-    token: admin, method: 'PUT', data: { username: 'validation_admin', papel: 'USER', ativo: true }
+    token: admin, method: 'PUT', data: { username: 'validation_admin', cpf: '11144477735', telefone: '11999999999', papel: 'USER', ativo: true }
   });
   console.log('PASS último ADMIN permanece protegido no artefato de produção');
 

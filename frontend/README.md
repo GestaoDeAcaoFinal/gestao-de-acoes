@@ -43,6 +43,10 @@ alterar a senha no `.env` não altera automaticamente um usuário já cadastrado
 ### Permissões e sessão
 
 - ADMIN: consultas, operações, cadastro de ações/corretoras, cotações e administração de usuários.
+
+O cadastro administrativo exige username, CPF válido e único, telefone brasileiro com DDD e senha inicial. A edição exige completar CPF e telefone das contas antigas; o login dessas contas continua funcionando com username e senha. O formulário aceita CPF com ou sem máscara e telefone fixo/celular com DDD, normalizando ambos antes do envio. A senha continua no fluxo separado de troca durante a edição. Essa funcionalidade exige o backend com a migração Liquibase `007-cpf-telefone-usuario.xml`; não utiliza API externa nem confirmação por SMS.
+
+Validação local em25/11/2026: 193 testes Angular, build de produção e17 testes Playwright em Chrome aprovados. O cadastro foi exercitado em1280px e390px com backendH2 isolado, incluindo CPF inválido, persistência, edição e duplicidade; as capturas foram inspecionadas. As fixtures do smokeDocker foram atualizadas, mas esse smoke não foi executado nesta etapa. O build ainda apresenta avisos de depreciação Sass/Bootstrap.
 - USER: consultas, carteira e compra/venda.
 - O JWT fica no `sessionStorage` da aba. Logout e expiração limpam a sessão.
 - `401` em recurso protegido encaminha ao login; `403` mantém a sessão e apresenta o erro de permissão.

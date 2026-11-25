@@ -7,7 +7,7 @@ import { UsuarioService } from './usuario.service';
 describe('UsuarioService contratos HTTP', () => {
   let service: UsuarioService;
   let http: HttpTestingController;
-  const user = { id: 4, username: 'operador', papel: 'USER' as const, ativo: true };
+  const user = { id: 4, username: 'operador', papel: 'USER' as const, ativo: true, cpf: '52998224725', telefone: '11999999999' };
   beforeEach(() => {
     TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting(),
       { provide: API_BASE_URL, useValue: 'http://localhost:8080/' }] });
@@ -21,13 +21,13 @@ describe('UsuarioService contratos HTTP', () => {
     expect(request.request.method).toBe('GET'); request.flush([user]);
   });
   it('cadastra com os campos do DTO de criação', () => {
-    const body = { username: 'operador', password: 'senha-ficticia', papel: 'USER' as const };
+    const body = { username: 'operador', cpf: '52998224725', telefone: '11999999999', password: 'senha-ficticia', papel: 'USER' as const };
     service.cadastrar(body).subscribe();
     const request = http.expectOne('http://localhost:8080/api/usuarios');
     expect(request.request.method).toBe('POST'); expect(request.request.body).toEqual(body); request.flush(user);
   });
   it('edita perfil e status sem enviar senha', () => {
-    const body = { username: 'operador', papel: 'USER' as const, ativo: false };
+    const body = { username: 'operador', cpf: '52998224725', telefone: '11999999999', papel: 'USER' as const, ativo: false };
     service.atualizar(4, body).subscribe();
     const request = http.expectOne('http://localhost:8080/api/usuarios/4');
     expect(request.request.method).toBe('PUT'); expect(request.request.body).toEqual(body); request.flush(user);

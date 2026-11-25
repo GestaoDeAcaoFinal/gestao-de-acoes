@@ -248,9 +248,12 @@ No PowerShell:
 ```powershell
 .\mvnw.cmd test
 .\mvnw.cmd package
+.\mvnw.cmd clean verify
 ```
 
 Os testes automatizados usam H2, fixtures e servidores HTTP simulados; não exigem Docker, internet ou credenciais reais.
+
+O comando `clean verify` também gera o relatório JaCoCo e verifica os limites globais de **85% de linhas e 85% de branches**. Após incluir CPF e telefone no cadastro, a execução local passou com **376 testes**, **98,75% de linhas** e **98,33% de branches**. As regras, a migração de contas antigas e os testes estão em [Cadastro de perfil](docs/cadastro-perfil.md). O histórico da ampliação anterior está em [Cobertura 85/85](docs/cobertura-85-85.md).
 
 ## Segurança e autenticação JWT
 

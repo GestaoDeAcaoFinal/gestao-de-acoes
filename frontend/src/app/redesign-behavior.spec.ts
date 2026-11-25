@@ -116,7 +116,7 @@ describe('Redesign — fluxos preservados', () => {
     fixture.componentInstance.editar(); fixture.detectChanges(); await fixture.whenStable();
     expect(document.activeElement).toBe(fixture.nativeElement.querySelector('#acao'));
     const users = create(UsuariosComponent);
-    const user = { id: 1, username: 'operador', papel: 'USER' as const, ativo: true };
+    const user = { id: 1, username: 'operador', papel: 'USER' as const, ativo: true, cpf: null, telefone: null };
     users.componentInstance.editar(user); users.detectChanges(); await users.whenStable();
     expect(document.activeElement).toBe(users.nativeElement.querySelector('#usuario-nome'));
     users.componentInstance.prepararSenha(user); users.detectChanges(); await users.whenStable();

@@ -22,18 +22,24 @@ export interface UsuarioResponse {
   username: string;
   papel: Papel;
   ativo: boolean;
+  cpf: string | null;
+  telefone: string | null;
 }
 
 export interface UsuarioCreateRequest {
   username: string;
   password: string;
   papel: Papel;
+  cpf: string;
+  telefone: string;
 }
 
 export interface UsuarioUpdateRequest {
   username: string;
   papel: Papel;
   ativo: boolean;
+  cpf: string;
+  telefone: string;
 }
 
 export interface AlterarSenhaRequest {

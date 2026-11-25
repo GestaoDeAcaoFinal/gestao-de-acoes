@@ -1,11 +1,11 @@
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 
 // Credenciais exclusivamente sintéticas, recriadas no H2 a cada execução.
 const API = 'http://127.0.0.1:18080';
 const ADMIN = { username: 'e2e_admin', password: 'E2e-only-admin-123!' };
 const PASSWORD = 'E2e-only-user-123!';
-type Account = { id: number; username: string; password: string; papel: 'ADMIN' | 'USER' };
+type Account = { id: number; username: string; password: string; papel: 'ADMIN' | 'USER'; cpf: string; telefone: string };
 let adminToken: string;
 let account: Account;
 
@@ -15,10 +15,18 @@ async function tokenFor(request: APIRequestContext, username: string, password =
   return (await response.json()).token;
 }
 function headers(token: string) { return { Authorization: `Bearer ${token}` }; }
+function cpfDeTeste(): string {
+  const digitos = String(randomInt(100_000_000, 999_999_999)).split('').map(Number);
+  for (const tamanho of [9, 10]) {
+    const soma = digitos.reduce((total, digito, i) => total + digito * (tamanho + 1 - i), 0);
+    digitos.push((soma * 10 % 11) % 10);
+  }
+  return digitos.join('');
+}
 async function createAccount(request: APIRequestContext, papel: 'ADMIN' | 'USER' = 'USER'): Promise<Account> {
   const username = `e2e_${randomUUID().slice(0, 8)}`;
   const response = await request.post(`${API}/api/usuarios`, {
-    headers: headers(adminToken), data: { username, password: PASSWORD, papel }
+    headers: headers(adminToken), data: { username, password: PASSWORD, papel, cpf: cpfDeTeste(), telefone: '11999999999' }
   });
   expect(response.status()).toBe(201);
   return { ...(await response.json()), password: PASSWORD };
@@ -90,10 +98,48 @@ test('login, rota protegida e permissão USER são aplicados no navegador e na A
   expect((await request.get(`${API}/api/usuarios`, { headers: headers(userToken) })).status()).toBe(403);
 });
 
+for (const largura of [1280, 390]) {
+  test(`cadastro com CPF e telefone: validação, persistência e duplicidade em ${largura}px`, async ({ page, request }, testInfo) => {
+    await page.setViewportSize({ width: largura, height: 844 });
+    await login(page, ADMIN.username, ADMIN.password);
+    await page.goto('/usuarios');
+    const username = `perfil_${randomUUID().slice(0, 8)}`;
+    const cpf = cpfDeTeste();
+    await page.locator('#usuario-nome').fill(username);
+    await page.getByLabel('CPF', { exact: true }).fill('11111111111');
+    await page.getByLabel('Telefone com DDD', { exact: true }).fill('(11) 99999-9999');
+    await page.locator('#usuario-senha').fill(PASSWORD);
+    await page.getByRole('button', { name: 'Salvar', exact: true }).click();
+    await expect(page.locator('#usuario-cpf-error')).toContainText('CPF válido');
+    await page.getByLabel('CPF', { exact: true }).fill(cpf);
+    await page.screenshot({ path: testInfo.outputPath('cadastro.png'), fullPage: true });
+    await page.getByRole('button', { name: 'Salvar', exact: true }).click();
+    const linha = page.getByRole('row').filter({ hasText: username });
+    await expect(linha).toBeVisible();
+    await linha.getByRole('button', { name: 'Editar', exact: true }).click();
+    await expect(page.getByLabel('CPF', { exact: true })).toHaveValue(cpf);
+    await expect(page.getByLabel('Telefone com DDD', { exact: true })).toHaveValue('11999999999');
+    await page.getByLabel('Telefone com DDD', { exact: true }).fill('(21) 3333-4444');
+    await page.getByRole('button', { name: 'Salvar', exact: true }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Usuário salvo' })).toBeVisible();
+    const users = await (await request.get(`${API}/api/usuarios`, { headers: headers(adminToken) })).json();
+    expect(users.find((item: Account) => item.username === username)?.telefone).toBe('2133334444');
+    await page.locator('#usuario-nome').fill(`duplicado_${randomUUID().slice(0, 6)}`);
+    await page.getByLabel('CPF', { exact: true }).fill(cpf);
+    await page.getByLabel('Telefone com DDD', { exact: true }).fill('11999999999');
+    await page.locator('#usuario-senha').fill(PASSWORD);
+    await page.getByRole('button', { name: 'Salvar', exact: true }).click();
+    await expect(page.getByRole('alert')).toContainText('CPF já cadastrado');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  });
+}
+
 test('interface impede rebaixar ou desativar o último ADMIN', async ({ page, request }) => {
   await login(page, ADMIN.username, ADMIN.password);
   await page.goto('/usuarios');
   await page.getByRole('row').filter({ hasText: ADMIN.username }).getByRole('button', { name: 'Editar', exact: true }).click();
+  await page.getByLabel('CPF', { exact: true }).fill(cpfDeTeste());
+  await page.getByLabel('Telefone com DDD', { exact: true }).fill('(11) 99999-9999');
   await page.getByLabel('Permissão', { exact: true }).selectOption('USER');
   await page.getByRole('button', { name: 'Salvar', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('administrador ativo');
@@ -230,7 +276,7 @@ test('mudança de perfil/status encerra acesso e reativação não revive token 
   await expect(page.getByRole('heading', { name: 'Usuários', exact: true })).toBeVisible();
   const update = async (ativo: boolean) => {
     const response = await request.put(`${API}/api/usuarios/${target.id}`, {
-      headers: headers(adminToken), data: { username: target.username, papel: 'USER', ativo }
+      headers: headers(adminToken), data: { username: target.username, cpf: target.cpf, telefone: target.telefone, papel: 'USER', ativo }
     });
     expect(response.status()).toBe(200);
   };

@@ -178,6 +178,10 @@ No Linux/macOS, defina `E2E_BACKEND_DIR` com o caminho absoluto de `backend/`. O
 
 O [CI do conjunto](https://github.com/GestaoDeAcaoFinal/gestao-de-acoes/actions/workflows/ci.yml) executa `mvn verify`, cobertura, testes Angular, build, validação do Compose, E2E e smoke das imagens de produção. A validação funcional de **24/11/2026** aprovou **187 testes backend, 164 testes Angular e 15 cenários E2E**, além dos builds e do smoke Docker.
 
+Em **25/11/2026**, os projetos de origem sincronizados neste snapshot passaram localmente em **376 testes backend**, **193 testes Angular** e **17 cenários E2E**, além do build Angular. A cobertura ficou em **98,75% de linhas e 98,33% de branches**, mantendo os limites 85/85. Esses resultados locais não representam uma nova execução remota do CI. O cadastro administrativo agora exige CPF válido e único e telefone com DDD; contas antigas mantêm login e devem completar esses dados ao editar. Consulte [Cadastro de perfil](backend/docs/cadastro-perfil.md).
+
+As imagens locais também foram reconstruídas e os containers do projeto `gestao-de-acao` atualizados, com migração007 aplicada e contagens de dados preservadas. Consulte o [registro da atualização Docker](docs/docker-cadastro-2026-11-25.md).
+
 ## Projetos de origem e documentação
 
 | Repositório | Papel |
