@@ -30,10 +30,12 @@ export class AtualizarCotacoesComponent {
   atualizar(): void {
     if (this.atualizando || this.bloqueado || !this.auth.hasRole('ADMIN')) return;
     this.atualizando = true;
-    this.mensagem = 'Preparando atualização. As consultas internacionais respeitam o limite do provedor e podem levar cerca de um minuto.';
+    this.mensagem = 'Preparando atualização por mercado. Os créditos disponíveis serão utilizados respeitando a cota do provedor.';
     this.erro = '';
     this.acoes.atualizarTodasCotacoes((completed, total, ticker) => {
       this.mensagem = `${completed} de ${total} ações processadas${ticker ? ' · ' + ticker : ''}. As consultas internacionais respeitam o limite do provedor; aguarde.`;
+    }, seconds => {
+      this.mensagem = `Aguardando ${seconds} segundos pela liberação da cota internacional. Não é necessário clicar novamente.`;
     }).pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.atualizando = false)).subscribe({
       next: resultados => {
         const falhas = resultados.filter(resultado => !resultado.sucesso);

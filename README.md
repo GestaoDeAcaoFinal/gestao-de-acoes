@@ -123,7 +123,7 @@ Para encerrar preservando os dados, use `docker compose down`. Para atualizar, n
 
 Brapi e Twelve Data fornecem dados de mercado; BrasilAPI, ViaCEP e o cadastro de intermediários da CVM apoiam o cadastro de corretoras. O retorno depende da disponibilidade, credenciais, cobertura de símbolos e plano de cada serviço.
 
-O botão de atualização geral, exclusivo do ADMIN, percorre o catálogo por meio das atualizações individuais. A configuração atual da Twelve Data respeita **8 créditos por minuto**, compartilhados entre cotações e câmbio, com intervalo de aproximadamente **7,6 segundos**. Um lote pode levar mais de um minuto. O câmbio válido é reutilizado por até cinco minutos; cotações que falham mantêm o preço e a data da última consulta válida.
+O botão de atualização geral, exclusivo do ADMIN, usa uma fila sequencial por provedor, permitindo que as ações brasileiras avancem enquanto uma consulta internacional aguarda. A Twelve Data continua limitada a **8 créditos por minuto**, compartilhados entre cotações e câmbio, com utilização imediata dos créditos disponíveis. Ao esgotar o orçamento local, o backend informa o prazo para uma espera cancelável no frontend, sem repetir automaticamente falhas externas. Um lote acima da cota ainda pode levar mais de um minuto. O câmbio válido é reutilizado por até cinco minutos; cotações que falham mantêm o preço e a data da última consulta válida. Consulte [Otimização de cotações](backend/docs/otimizacao-cotacoes.md).
 
 A data de atualização indica uma consulta bem-sucedida, mesmo que o preço não tenha mudado. O controle de créditos é por instância: outros processos usando a mesma chave também consomem a cota. O sistema não oferece streaming contínuo de preços.
 
@@ -178,9 +178,9 @@ No Linux/macOS, defina `E2E_BACKEND_DIR` com o caminho absoluto de `backend/`. O
 
 O [CI do conjunto](https://github.com/GestaoDeAcaoFinal/gestao-de-acoes/actions/workflows/ci.yml) executa `mvn verify`, cobertura, testes Angular, build, validação do Compose, E2E e smoke das imagens de produção. A validação funcional de **24/11/2026** aprovou **187 testes backend, 164 testes Angular e 15 cenários E2E**, além dos builds e do smoke Docker.
 
-Em **25/11/2026**, os projetos de origem sincronizados neste snapshot passaram localmente em **376 testes backend**, **193 testes Angular** e **17 cenários E2E**, além do build Angular. A cobertura ficou em **98,75% de linhas e 98,33% de branches**, mantendo os limites 85/85. Esses resultados locais não representam uma nova execução remota do CI. O cadastro administrativo agora exige CPF válido e único e telefone com DDD; contas antigas mantêm login e devem completar esses dados ao editar. Consulte [Cadastro de perfil](backend/docs/cadastro-perfil.md).
+Em **25/11/2026**, os projetos de origem sincronizados neste snapshot passaram localmente em **382 testes backend**, **207 testes Angular** e **18 cenários E2E**, além do build Angular. A cobertura ficou em **98,78% de linhas e 98,34% de branches**, mantendo os limites 85/85. Esses resultados locais não representam uma nova execução remota do CI. O cadastro administrativo exige CPF válido e único e telefone com DDD; contas antigas mantêm login e devem completar esses dados ao editar. Consulte [Cadastro de perfil](backend/docs/cadastro-perfil.md). O cadastro e a normalização de tickers foram preservados nesta otimização.
 
-As imagens locais também foram reconstruídas e os containers do projeto `gestao-de-acao` atualizados, com migração007 aplicada e contagens de dados preservadas. Consulte o [registro da atualização Docker](docs/docker-cadastro-2026-11-25.md).
+As imagens locais também foram reconstruídas e os containers do projeto `gestao-de-acao` atualizados, com migração007 aplicada e contagens de dados preservadas. Consulte os registros de [cadastro de perfil](docs/docker-cadastro-2026-11-25.md) e da [publicação atual com otimização de cotações](docs/docker-otimizacao-2026-11-25.md).
 
 ## Projetos de origem e documentação
 
@@ -190,7 +190,7 @@ As imagens locais também foram reconstruídas e os containers do projeto `gesta
 | [backend](https://github.com/GestaoDeAcaoFinal/backend) | Desenvolvimento da API Spring Boot |
 | [frontend](https://github.com/GestaoDeAcaoFinal/frontend) | Desenvolvimento da interface Angular |
 
-As pastas `backend/` e `frontend/` são **cópias versionadas, não submódulos**. Esta consolidação usa backend `3d22b2c` e frontend `a6457a1`, com SHAs completos em [.ci/upstream-revisions.json](.ci/upstream-revisions.json). Novos commits nos repositórios separados precisam ser sincronizados explicitamente com este conjunto.
+As pastas `backend/` e `frontend/` são **cópias versionadas, não submódulos**. Esta consolidação usa backend `4c27a0d` e frontend `ac927af`, com SHAs completos em [.ci/upstream-revisions.json](.ci/upstream-revisions.json). Novos commits nos repositórios separados precisam ser sincronizados explicitamente com este conjunto.
 
 Referências detalhadas:
 

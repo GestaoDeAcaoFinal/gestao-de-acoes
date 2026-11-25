@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { catchError, concatMap, from, map, Observable, of, tap, throwError, toArray } from 'rxjs';
+import { catchError, concatMap, from, map, merge, Observable, of, retry, tap, throwError, timer, toArray } from 'rxjs';
 import { ApiError } from '../core/api/api-error.interceptor';
 
 import { API_BASE_URL } from '../core/api/api-base-url.token';
@@ -45,20 +45,35 @@ export class AcaoService {
     return this.http.put<Acao>(`${this.apiUrl}/${id}/atualizar-cotacao`, {});
   }
 
-  atualizarTodasCotacoes(onProgress?: (completed: number, total: number, ticker: string) => void): Observable<AtualizacaoCotacao[]> {
+  atualizarTodasCotacoes(
+    onProgress?: (completed: number, total: number, ticker: string) => void,
+    onWait?: (seconds: number) => void
+  ): Observable<AtualizacaoCotacao[]> {
     return this.listar().pipe(concatMap(acoes => {
       let concluidas = 0;
       onProgress?.(0, acoes.length, '');
-      return from(acoes).pipe(
-      concatMap(acao => this.atualizarCotacao(acao.id).pipe(
-        map(() => ({ ticker: acao.ticker, sucesso: true })),
+      const itens = acoes.map((acao, index) => ({ acao, index }));
+      // Uma chamada por provedor, sem bloquear Brapi durante a espera internacional.
+      const filas = [false, true].map(internacional => from(
+        itens.filter(item => (item.acao.mercado === 'EUA') === internacional)
+      ).pipe(concatMap(({ acao, index }) => this.atualizarCotacao(acao.id).pipe(
+        retry({ count: 2, delay: (erro: ApiError) => {
+          if (erro.status === 503 && erro.code === 'AGUARDANDO_COTA' && erro.retryAfterSeconds) {
+            onWait?.(erro.retryAfterSeconds);
+            return timer(erro.retryAfterSeconds * 1000);
+          }
+          return throwError(() => erro);
+        } }),
+        map(() => ({ index, resultado: { ticker: acao.ticker, sucesso: true } as AtualizacaoCotacao })),
         catchError((erro: ApiError) => erro.status === 401 || erro.status === 403
           ? throwError(() => erro)
-          : of({ ticker: acao.ticker, sucesso: false, erro: erro.message }))
-      )),
-      tap(resultado => onProgress?.(++concluidas, acoes.length, resultado.ticker)),
-      toArray()
-    );
+          : of({ index, resultado: { ticker: acao.ticker, sucesso: false, erro: erro.message } as AtualizacaoCotacao }))
+      ))));
+      return merge(...filas).pipe(
+        tap(item => onProgress?.(++concluidas, acoes.length, item.resultado.ticker)),
+        toArray(),
+        map(resultados => resultados.sort((a, b) => a.index - b.index).map(item => item.resultado))
+      );
     }));
   }
 }

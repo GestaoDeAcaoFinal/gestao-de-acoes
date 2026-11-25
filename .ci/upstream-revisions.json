@@ -2,11 +2,11 @@
   "synchronizedAt": "2026-11-25",
   "backend": {
     "repository": "https://github.com/GestaoDeAcaoFinal/backend",
-    "commit": "3351184415b804024250347c4095bfeb47cfdbb6"
+    "commit": "4c27a0d47fadfcf9df1d37b4a05fb156d79f6126"
   },
   "frontend": {
     "repository": "https://github.com/GestaoDeAcaoFinal/frontend",
-    "commit": "d8458e4cdf656dd0a5926e1e4dc31ad7b76f69e0"
+    "commit": "ac927af67e3e98ac3e6020a0075c27c52431afe0"
   },
   "excludedUpstreamMetadata": [
     ".github/",

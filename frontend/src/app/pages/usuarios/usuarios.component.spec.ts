@@ -19,6 +19,14 @@ describe('UsuariosComponent', () => {
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
+  it('não desvia o foco se o usuário começa a preencher outro campo antes da renderização', async () => {
+    const telefone: HTMLInputElement = fixture.nativeElement.querySelector('#usuario-telefone');
+    component.editar(user);
+    telefone.focus();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(document.activeElement).toBe(telefone);
+  });
   it('exige completar os dados de uma conta antiga antes de editar', () => {
     component.editar({ ...user, cpf: null, telefone: null });
     component.salvar();

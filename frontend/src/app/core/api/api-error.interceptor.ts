@@ -8,7 +8,9 @@ export class ApiError extends Error {
     readonly status: number,
     readonly title: string,
     detail: string,
-    readonly fieldErrors: FieldErrors = {}
+    readonly fieldErrors: FieldErrors = {},
+    readonly retryAfterSeconds?: number,
+    readonly code?: string
   ) {
     super(detail);
     this.name = 'ApiError';
@@ -38,7 +40,12 @@ export function normalizeApiError(error: unknown): ApiError {
       error.error.status,
       error.error.title,
       error.error.detail,
-      error.error.errors ?? {}
+      error.error.errors ?? {},
+      typeof error.error.tentarAposSegundos === 'number'
+        && Number.isInteger(error.error.tentarAposSegundos)
+        && error.error.tentarAposSegundos >= 1 && error.error.tentarAposSegundos <= 86_400
+        ? error.error.tentarAposSegundos : undefined,
+      error.error.codigo === 'AGUARDANDO_COTA' ? error.error.codigo : undefined
     );
   }
 

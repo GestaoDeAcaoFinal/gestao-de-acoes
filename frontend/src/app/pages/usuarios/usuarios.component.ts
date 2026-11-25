@@ -72,7 +72,14 @@ export class UsuariosComponent implements OnInit {
   }
   prepararSenha(user: UsuarioResponse) { this.senhaUsuario = user; this.senhaForm.reset(); this.focarCampo('#nova-senha'); }
   private focarCampo(selector: string): void {
-    afterNextRender({ write: () => this.host.nativeElement.querySelector<HTMLElement>(selector)?.focus() }, { injector: this.injector });
+    const document = this.host.nativeElement.ownerDocument;
+    const ativoAoSolicitar = document.activeElement;
+    afterNextRender({ write: () => {
+      const ativoAgora = document.activeElement;
+      // Respeita a interação iniciada depois do pedido de foco automático.
+      if (ativoAgora !== ativoAoSolicitar && ativoAgora !== document.body && ativoAgora !== document.documentElement) return;
+      this.host.nativeElement.querySelector<HTMLElement>(selector)?.focus();
+    } }, { injector: this.injector });
   }
   salvarSenha() {
     if (!this.senhaUsuario || this.senhaForm.invalid || this.saving) { this.senhaForm.markAllAsTouched(); return; }

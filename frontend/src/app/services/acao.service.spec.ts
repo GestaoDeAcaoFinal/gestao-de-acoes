@@ -1,6 +1,6 @@
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { TestBed } from '@angular/core/testing';
+import { fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { firstValueFrom } from 'rxjs';
 
 import { API_BASE_URL } from '../core/api/api-base-url.token';
@@ -55,6 +55,78 @@ describe('AcaoService', () => {
   });
 
   afterEach(() => httpTesting.verify());
+
+  it('aguarda somente a cota local e mantém a fila brasileira ativa', fakeAsync(() => {
+    let resultados: unknown;
+    const espera = jasmine.createSpy('espera');
+    service.atualizarTodasCotacoes(undefined, espera).subscribe(value => resultados = value);
+    httpTesting.expectOne(`${apiBaseUrl}/acoes`).flush([acao, { ...acao, id: 2, ticker: 'AAPL', mercado: 'EUA' }]);
+    httpTesting.expectOne(`${apiBaseUrl}/acoes/2/atualizar-cotacao`).flush({
+      status: 503, title: 'Aguardando cota', detail: 'Aguarde', codigo: 'AGUARDANDO_COTA', tentarAposSegundos: 2
+    }, { status: 503, statusText: 'Service Unavailable' });
+    httpTesting.expectOne(`${apiBaseUrl}/acoes/1/atualizar-cotacao`).flush(acao);
+    expect(espera).toHaveBeenCalledOnceWith(2);
+    expect(resultados).toBeUndefined();
+    tick(1999); httpTesting.expectNone(`${apiBaseUrl}/acoes/2/atualizar-cotacao`);
+    tick(1); httpTesting.expectOne(`${apiBaseUrl}/acoes/2/atualizar-cotacao`).flush(acao);
+    expect(resultados).toEqual([{ ticker: 'PETR4', sucesso: true }, { ticker: 'AAPL', sucesso: true }]);
+  }));
+
+  it('não repete falha externa mesmo que o provedor mencione limite', fakeAsync(() => {
+    let resultados: unknown;
+    service.atualizarTodasCotacoes().subscribe(value => resultados = value);
+    httpTesting.expectOne(`${apiBaseUrl}/acoes`).flush([acao]);
+    httpTesting.expectOne(`${apiBaseUrl}/acoes/1/atualizar-cotacao`).flush({
+      status: 503, title: 'Provedor indisponível', detail: 'O limite de consultas foi atingido'
+    }, { status: 503, statusText: 'Service Unavailable' });
+    tick(120_000);
+    httpTesting.expectNone(`${apiBaseUrl}/acoes/1/atualizar-cotacao`);
+    expect(resultados).toEqual([{ ticker: 'PETR4', sucesso: false, erro: 'O limite de consultas foi atingido' }]);
+  }));
+
+  it('limita a repetição por cota local e permite cancelar a espera', fakeAsync(() => {
+    let resultados: unknown;
+    service.atualizarTodasCotacoes().subscribe(value => resultados = value);
+    httpTesting.expectOne(`${apiBaseUrl}/acoes`).flush([acao]);
+    for (let i = 0; i < 3; i++) {
+      httpTesting.expectOne(`${apiBaseUrl}/acoes/1/atualizar-cotacao`).flush({
+        status: 503, title: 'Cota', detail: 'Aguarde', codigo: 'AGUARDANDO_COTA', tentarAposSegundos: 1
+      }, { status: 503, statusText: 'Service Unavailable' });
+      tick(1000);
+    }
+    httpTesting.expectNone(`${apiBaseUrl}/acoes/1/atualizar-cotacao`);
+    expect(resultados).toEqual([{ ticker: 'PETR4', sucesso: false, erro: 'Aguarde' }]);
+    const subscription = service.atualizarTodasCotacoes().subscribe();
+    httpTesting.expectOne(`${apiBaseUrl}/acoes`).flush([acao]);
+    httpTesting.expectOne(`${apiBaseUrl}/acoes/1/atualizar-cotacao`).flush({
+      status: 503, title: 'Cota', detail: 'Aguarde', codigo: 'AGUARDANDO_COTA', tentarAposSegundos: 1
+    }, { status: 503, statusText: 'Service Unavailable' });
+    subscription.unsubscribe(); tick(2000);
+    httpTesting.expectNone(`${apiBaseUrl}/acoes/1/atualizar-cotacao`);
+  }));
+
+  it('interrompe ambas as filas quando a autenticação é recusada', () => {
+    let falha: ApiError | undefined;
+    service.atualizarTodasCotacoes().subscribe({ error: error => falha = error });
+    httpTesting.expectOne(`${apiBaseUrl}/acoes`).flush([acao, { ...acao, id: 2, ticker: 'AAPL', mercado: 'EUA' }, { ...acao, id: 3 }]);
+    const brasileira = httpTesting.expectOne(`${apiBaseUrl}/acoes/1/atualizar-cotacao`);
+    httpTesting.expectOne(`${apiBaseUrl}/acoes/2/atualizar-cotacao`).flush({}, { status: 401, statusText: 'Unauthorized' });
+    expect(falha?.status).toBe(401);
+    expect(brasileira.cancelled).toBeTrue();
+    httpTesting.expectNone(`${apiBaseUrl}/acoes/3/atualizar-cotacao`);
+  });
+
+  it('não deixa uma cotação americana lenta bloquear a fila brasileira', async () => {
+    const result = firstValueFrom(service.atualizarTodasCotacoes());
+    httpTesting.expectOne(`${apiBaseUrl}/acoes`).flush([
+      { ...acao, id: 2, ticker: 'AAPL', mercado: 'EUA' }, acao
+    ]);
+    const americana = httpTesting.expectOne(`${apiBaseUrl}/acoes/2/atualizar-cotacao`);
+    const brasileira = httpTesting.expectOne(`${apiBaseUrl}/acoes/1/atualizar-cotacao`);
+    brasileira.flush(acao);
+    americana.flush({ ...acao, id: 2, ticker: 'AAPL', mercado: 'EUA' });
+    expect((await result).map(item => item.ticker)).toEqual(['AAPL', 'PETR4']);
+  });
 
   it('informa progresso após cada resposta sem emitir resultado final antecipado', async () => {
     const progress = jasmine.createSpy('progress');

@@ -79,4 +79,6 @@ export interface ProblemDetail {
   detail: string;
   instance?: string;
   errors?: FieldErrors;
+  codigo?: string;
+  tentarAposSegundos?: number;
 }

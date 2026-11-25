@@ -5,6 +5,22 @@ import { AcaoService, AtualizacaoCotacao } from '../../services/acao.service';
 import { AtualizarCotacoesComponent } from './atualizar-cotacoes.component';
 
 describe('AtualizarCotacoesComponent', () => {
+  it('informa a espera local e mantém o botão bloqueado até a conclusão', () => {
+    const request = new Subject<AtualizacaoCotacao[]>();
+    let wait: ((seconds: number) => void) | undefined;
+    const service = { atualizarTodasCotacoes: (_progress: unknown, callback: (seconds: number) => void) => {
+      wait = callback; return request;
+    } };
+    TestBed.configureTestingModule({ imports: [AtualizarCotacoesComponent], providers: [
+      { provide: AuthService, useValue: { hasRole: () => true } }, { provide: AcaoService, useValue: service }
+    ] });
+    const fixture = TestBed.createComponent(AtualizarCotacoesComponent);
+    fixture.componentInstance.atualizar(); wait?.(61); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[role="status"]').textContent).toContain('61 segundos');
+    expect(fixture.nativeElement.querySelector('button').disabled).toBeTrue();
+    request.next([]); request.complete(); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('button').disabled).toBeFalse();
+  });
   it('mostra progresso e mantém bloqueio até o fim do lote sem recarga antecipada', () => {
     const request = new Subject<AtualizacaoCotacao[]>();
     let notify: ((completed: number, total: number, ticker: string) => void) | undefined;

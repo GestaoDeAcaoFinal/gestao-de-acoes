@@ -120,7 +120,13 @@ for (const largura of [1280, 390]) {
     await expect(page.getByLabel('CPF', { exact: true })).toHaveValue(cpf);
     await expect(page.getByLabel('Telefone com DDD', { exact: true })).toHaveValue('11999999999');
     await page.getByLabel('Telefone com DDD', { exact: true }).fill('(21) 3333-4444');
+    const edicao = page.waitForResponse(response => response.request().method() === 'PUT'
+      && /\/usuarios\/[0-9]+$/.test(new URL(response.url()).pathname));
     await page.getByRole('button', { name: 'Salvar', exact: true }).click();
+    const respostaEdicao = await edicao;
+    expect(respostaEdicao.request().postDataJSON().telefone).toBe('2133334444');
+    expect(respostaEdicao.status()).toBe(200);
+    expect((await respostaEdicao.json()).telefone).toBe('2133334444');
     await expect(page.getByRole('status').filter({ hasText: 'Usuário salvo' })).toBeVisible();
     const users = await (await request.get(`${API}/api/usuarios`, { headers: headers(adminToken) })).json();
     expect(users.find((item: Account) => item.username === username)?.telefone).toBe('2133334444');
@@ -141,11 +147,19 @@ test('interface impede rebaixar ou desativar o último ADMIN', async ({ page, re
   await page.getByLabel('CPF', { exact: true }).fill(cpfDeTeste());
   await page.getByLabel('Telefone com DDD', { exact: true }).fill('(11) 99999-9999');
   await page.getByLabel('Permissão', { exact: true }).selectOption('USER');
+  const rebaixamento = page.waitForResponse(response => response.request().method() === 'PUT'
+    && /\/usuarios\/[0-9]+$/.test(new URL(response.url()).pathname));
   await page.getByRole('button', { name: 'Salvar', exact: true }).click();
+  const respostaRebaixamento = await rebaixamento;
+  expect(respostaRebaixamento.request().postDataJSON().username).toBe(ADMIN.username);
+  expect(respostaRebaixamento.status()).toBe(409);
   await expect(page.getByRole('alert')).toContainText('administrador ativo');
   await page.getByLabel('Permissão', { exact: true }).selectOption('ADMIN');
   await page.getByLabel('Usuário ativo').uncheck();
+  const desativacao = page.waitForResponse(response => response.request().method() === 'PUT'
+    && /\/usuarios\/[0-9]+$/.test(new URL(response.url()).pathname));
   await page.getByRole('button', { name: 'Salvar', exact: true }).click();
+  expect((await desativacao).status()).toBe(409);
   await expect(page.getByRole('alert')).toContainText('administrador ativo');
   expect((await request.get(`${API}/api/usuarios`, { headers: headers(adminToken) })).status()).toBe(200);
 });
@@ -397,6 +411,34 @@ test('nove ativos americanos e câmbio respeitam cota compartilhada e preservam 
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('carteira-quota-390.png'), fullPage: true });
+});
+
+test('uma cotação internacional pendente não impede a atualização brasileira', async ({ page, request }) => {
+  const corretora = (await (await request.get(`${API}/corretoras`, { headers: headers(adminToken) })).json())[0];
+  const cadastro = await request.post(`${API}/acoes`, { headers: headers(adminToken), data: { ticker: 'AAPL', corretoraId: corretora.id } });
+  expect([200, 409]).toContain(cadastro.status());
+  const stocks = await (await request.get(`${API}/acoes`, { headers: headers(adminToken) })).json();
+  const americana = stocks.find((stock: { ticker: string }) => stock.ticker === 'AAPL');
+  const brasileira = stocks.find((stock: { ticker: string }) => stock.ticker === 'PETR4');
+  await page.route('**/api/acoes', route => route.fulfill({ json: [americana, ...stocks.filter((stock: { id: number }) => stock.id !== americana.id)] }));
+  let liberar = () => {};
+  let iniciou = () => {};
+  const liberada = new Promise<void>(resolve => liberar = resolve);
+  const iniciada = new Promise<void>(resolve => iniciou = resolve);
+  await page.route(`**/api/acoes/${americana.id}/atualizar-cotacao`, async route => {
+    iniciou(); await liberada; await route.continue();
+  });
+  await login(page, ADMIN.username, ADMIN.password);
+  await page.goto('/carteira');
+  const respostaBrasileira = page.waitForResponse(response => response.url().endsWith(`/api/acoes/${brasileira.id}/atualizar-cotacao`) && response.request().method() === 'PUT');
+  try {
+    await page.getByRole('button', { name: 'Atualizar todas as cotações', exact: true }).click();
+    const [resposta] = await Promise.all([respostaBrasileira, iniciada]);
+    expect(resposta.status()).toBe(200);
+    await expect(page.locator('app-atualizar-cotacoes button')).toBeDisabled();
+    await expect(page.locator('app-atualizar-cotacoes [role="status"]')).toContainText('ações processadas');
+  } finally { liberar(); }
+  await expect(page.locator('app-atualizar-cotacoes button')).toBeEnabled();
 });
 
 test('429 externo retorna orientação de limite sem encerrar sessão e impede nova chamada durante cooldown', async ({ request }) => {
