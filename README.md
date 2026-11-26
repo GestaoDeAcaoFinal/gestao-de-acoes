@@ -182,6 +182,8 @@ Em **25/11/2026**, os projetos de origem sincronizados neste snapshot passaram l
 
 As imagens locais também foram reconstruídas e os containers do projeto `gestao-de-acao` atualizados, com migração007 aplicada e contagens de dados preservadas. Consulte os registros de [cadastro de perfil](docs/docker-cadastro-2026-11-25.md) e da [publicação atual com otimização de cotações](docs/docker-otimizacao-2026-11-25.md).
 
+Em **26/11/2026**, a regra de telefone único foi implementada no cadastro e na edição, preservando a unicidade de CPF e permitindo manter os próprios dados. A migração 008 protege também gravações concorrentes no banco e interrompe com segurança se existirem telefones duplicados anteriores. Validação local: **389 testes backend**, **207 testes Angular**, **18 cenários E2E**, build Angular e smoke das imagens Docker aprovados; cobertura de **98,78% de linhas e 98,35% de branches**. O Docker local foi atualizado com dados preservados. Consulte o [registro de publicação](docs/docker-telefone-unico-2026-11-26.md).
+
 ## Projetos de origem e documentação
 
 | Repositório | Papel |
@@ -190,7 +192,7 @@ As imagens locais também foram reconstruídas e os containers do projeto `gesta
 | [backend](https://github.com/GestaoDeAcaoFinal/backend) | Desenvolvimento da API Spring Boot |
 | [frontend](https://github.com/GestaoDeAcaoFinal/frontend) | Desenvolvimento da interface Angular |
 
-As pastas `backend/` e `frontend/` são **cópias versionadas, não submódulos**. Esta consolidação usa backend `4c27a0d` e frontend `ac927af`, com SHAs completos em [.ci/upstream-revisions.json](.ci/upstream-revisions.json). Novos commits nos repositórios separados precisam ser sincronizados explicitamente com este conjunto.
+As pastas `backend/` e `frontend/` são **cópias versionadas, não submódulos**. Esta consolidação usa backend `f6e1512` e frontend `c7b72ea`, com SHAs completos em [.ci/upstream-revisions.json](.ci/upstream-revisions.json). Novos commits nos repositórios separados precisam ser sincronizados explicitamente com este conjunto.
 
 Referências detalhadas:
 

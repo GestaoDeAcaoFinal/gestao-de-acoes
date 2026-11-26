@@ -123,8 +123,17 @@ try {
   const users = await (await api('/api/api/usuarios', 200, { token: admin })).json();
   const adminId = users.find(item => item.username === 'validation_admin')?.id;
   assert(adminId, 'Administrador sintético não localizado');
+  const duplicatePhone = await api(`/api/api/usuarios/${adminId}`, 409, {
+    token: admin, method: 'PUT', data: { username: 'validation_admin', cpf: '11144477735', telefone: '(11) 99999-9999', papel: 'ADMIN', ativo: true }
+  });
+  assert((await duplicatePhone.json()).detail === 'Telefone já cadastrado em outra conta', 'Conflito de telefone não foi identificado');
+  const duplicateCreate = await api('/api/api/usuarios', 409, {
+    token: admin, method: 'POST', data: { username: 'validation_duplicate', cpf: '11144477735', telefone: '11999999999', password: userPassword, papel: 'USER' }
+  });
+  assert((await duplicateCreate.json()).detail === 'Telefone já cadastrado em outra conta', 'Cadastro com telefone repetido foi aceito');
+  console.log('PASS telefone único no cadastro e edição com e sem máscara');
   await api(`/api/api/usuarios/${adminId}`, 409, {
-    token: admin, method: 'PUT', data: { username: 'validation_admin', cpf: '11144477735', telefone: '11999999999', papel: 'USER', ativo: true }
+    token: admin, method: 'PUT', data: { username: 'validation_admin', cpf: '11144477735', telefone: '21988888888', papel: 'USER', ativo: true }
   });
   console.log('PASS último ADMIN permanece protegido no artefato de produção');
 

@@ -23,10 +23,15 @@ function cpfDeTeste(): string {
   }
   return digitos.join('');
 }
+let sequenciaTelefone = randomInt(10_000_000, 90_000_000);
+function telefoneDeTeste(): string { return `119${sequenciaTelefone++}`; }
+function telefoneComMascara(telefone: string): string {
+  return `(${telefone.slice(0, 2)}) ${telefone.slice(2, 7)}-${telefone.slice(7)}`;
+}
 async function createAccount(request: APIRequestContext, papel: 'ADMIN' | 'USER' = 'USER'): Promise<Account> {
   const username = `e2e_${randomUUID().slice(0, 8)}`;
   const response = await request.post(`${API}/api/usuarios`, {
-    headers: headers(adminToken), data: { username, password: PASSWORD, papel, cpf: cpfDeTeste(), telefone: '11999999999' }
+    headers: headers(adminToken), data: { username, password: PASSWORD, papel, cpf: cpfDeTeste(), telefone: telefoneDeTeste() }
   });
   expect(response.status()).toBe(201);
   return { ...(await response.json()), password: PASSWORD };
@@ -105,9 +110,11 @@ for (const largura of [1280, 390]) {
     await page.goto('/usuarios');
     const username = `perfil_${randomUUID().slice(0, 8)}`;
     const cpf = cpfDeTeste();
+    const telefone = telefoneDeTeste();
+    const novoTelefone = telefoneDeTeste();
     await page.locator('#usuario-nome').fill(username);
     await page.getByLabel('CPF', { exact: true }).fill('11111111111');
-    await page.getByLabel('Telefone com DDD', { exact: true }).fill('(11) 99999-9999');
+    await page.getByLabel('Telefone com DDD', { exact: true }).fill(telefoneComMascara(telefone));
     await page.locator('#usuario-senha').fill(PASSWORD);
     await page.getByRole('button', { name: 'Salvar', exact: true }).click();
     await expect(page.locator('#usuario-cpf-error')).toContainText('CPF válido');
@@ -118,24 +125,42 @@ for (const largura of [1280, 390]) {
     await expect(linha).toBeVisible();
     await linha.getByRole('button', { name: 'Editar', exact: true }).click();
     await expect(page.getByLabel('CPF', { exact: true })).toHaveValue(cpf);
-    await expect(page.getByLabel('Telefone com DDD', { exact: true })).toHaveValue('11999999999');
-    await page.getByLabel('Telefone com DDD', { exact: true }).fill('(21) 3333-4444');
+    await expect(page.getByLabel('Telefone com DDD', { exact: true })).toHaveValue(telefone);
+    await page.getByLabel('Telefone com DDD', { exact: true }).fill(telefoneComMascara(novoTelefone));
     const edicao = page.waitForResponse(response => response.request().method() === 'PUT'
       && /\/usuarios\/[0-9]+$/.test(new URL(response.url()).pathname));
     await page.getByRole('button', { name: 'Salvar', exact: true }).click();
     const respostaEdicao = await edicao;
-    expect(respostaEdicao.request().postDataJSON().telefone).toBe('2133334444');
+    expect(respostaEdicao.request().postDataJSON().telefone).toBe(novoTelefone);
     expect(respostaEdicao.status()).toBe(200);
-    expect((await respostaEdicao.json()).telefone).toBe('2133334444');
+    expect((await respostaEdicao.json()).telefone).toBe(novoTelefone);
     await expect(page.getByRole('status').filter({ hasText: 'Usuário salvo' })).toBeVisible();
     const users = await (await request.get(`${API}/api/usuarios`, { headers: headers(adminToken) })).json();
-    expect(users.find((item: Account) => item.username === username)?.telefone).toBe('2133334444');
+    expect(users.find((item: Account) => item.username === username)?.telefone).toBe(novoTelefone);
     await page.locator('#usuario-nome').fill(`duplicado_${randomUUID().slice(0, 6)}`);
     await page.getByLabel('CPF', { exact: true }).fill(cpf);
     await page.getByLabel('Telefone com DDD', { exact: true }).fill('11999999999');
     await page.locator('#usuario-senha').fill(PASSWORD);
     await page.getByRole('button', { name: 'Salvar', exact: true }).click();
     await expect(page.getByRole('alert')).toContainText('CPF já cadastrado');
+    await page.getByLabel('CPF', { exact: true }).fill(cpfDeTeste());
+    await page.getByLabel('Telefone com DDD', { exact: true }).fill(telefoneComMascara(account.telefone));
+    const criacaoDuplicada = page.waitForResponse(r => r.request().method() === 'POST' && new URL(r.url()).pathname.endsWith('/usuarios'));
+    await page.getByRole('button', { name: 'Salvar', exact: true }).click();
+    expect((await criacaoDuplicada).status()).toBe(409);
+    await expect(page.getByRole('alert')).toContainText('Telefone já cadastrado em outra conta');
+    await linha.getByRole('button', { name: 'Editar', exact: true }).click();
+    await page.getByLabel('Telefone com DDD', { exact: true }).fill(account.telefone);
+    const edicaoDuplicada = page.waitForResponse(r => r.request().method() === 'PUT' && /\/usuarios\/[0-9]+$/.test(new URL(r.url()).pathname));
+    await page.getByRole('button', { name: 'Salvar', exact: true }).click();
+    expect((await edicaoDuplicada).status()).toBe(409);
+    await expect(page.getByRole('alert')).toContainText('Telefone já cadastrado em outra conta');
+    await page.getByLabel('Telefone com DDD', { exact: true }).fill(telefoneComMascara(novoTelefone));
+    const mantemProprio = page.waitForResponse(r => r.request().method() === 'PUT' && /\/usuarios\/[0-9]+$/.test(new URL(r.url()).pathname));
+    await page.getByRole('button', { name: 'Salvar', exact: true }).click();
+    expect((await mantemProprio).status()).toBe(200);
+    await expect(page.getByRole('status').filter({ hasText: 'Usuário salvo' })).toBeVisible();
+
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 }
@@ -145,7 +170,7 @@ test('interface impede rebaixar ou desativar o último ADMIN', async ({ page, re
   await page.goto('/usuarios');
   await page.getByRole('row').filter({ hasText: ADMIN.username }).getByRole('button', { name: 'Editar', exact: true }).click();
   await page.getByLabel('CPF', { exact: true }).fill(cpfDeTeste());
-  await page.getByLabel('Telefone com DDD', { exact: true }).fill('(11) 99999-9999');
+  await page.getByLabel('Telefone com DDD', { exact: true }).fill(telefoneDeTeste());
   await page.getByLabel('Permissão', { exact: true }).selectOption('USER');
   const rebaixamento = page.waitForResponse(response => response.request().method() === 'PUT'
     && /\/usuarios\/[0-9]+$/.test(new URL(response.url()).pathname));

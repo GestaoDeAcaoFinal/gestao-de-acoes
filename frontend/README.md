@@ -128,3 +128,5 @@ ng test
 ## Additional Resources
 
 For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+
+O backend também rejeita telefone já cadastrado em outra conta (HTTP 409), inclusive na edição; a interface preserva o formulário e apresenta a mensagem retornada. Os testes E2E cobrem o conflito de CPF e telefone em desktop e mobile e a manutenção do próprio número.
